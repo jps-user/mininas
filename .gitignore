@@ -1,0 +1,5 @@
+*.bak
+*.tmp
+*.tar
+*.tar.gz
+/var/log/mininas.log
