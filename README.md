@@ -1,5 +1,7 @@
 # MiniNAS
 
+> ⚠️ **Development Project** — This module is under active development and not yet ready for production use. Features may change, break, or be incomplete. Use at your own risk.
+
 A lightweight Webmin module for Linux file sharing administration.
 
 Built on top of Samba, Linux and Webmin – without replacing any of them.
