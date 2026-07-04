@@ -112,7 +112,15 @@ MnPerm.fromMode('$cur_mode');
 
 function mnApplyAndRedirect() {
   MnPerm.apply(function() {
-    setTimeout(function() { window.location.href = 'index.cgi'; }, 800);
+    setTimeout(function() {
+      // Webmin-konformer Redirect: top.location statt window.location
+      // damit der äussere Webmin-Frame neu lädt und die Sidebar erhalten bleibt
+      if (window.top && window.top !== window) {
+        window.top.location.href = window.location.href.replace('edit_permissions.cgi', 'index.cgi').replace(/\?.*$/, '');
+      } else {
+        window.location.href = 'index.cgi';
+      }
+    }, 800);
   });
 }
 </script>";
