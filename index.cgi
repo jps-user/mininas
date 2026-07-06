@@ -97,6 +97,7 @@ print "</div></div></div>";
 # ── Shares-Tabelle (volle Breite) ────────────────────────────────
 print "<div class='mn-section'>";
 print "<div class='mn-section-head'><i class='ti ti-folder' style='font-size:13px;'></i> Shares</div>";
+print "<div class='mn-table-wrap'>";
 print "<table class='mn-table' id='shares-table'>";
 print "<tr><th>Share</th><th>Owner</th><th>Permissions</th><th>Actions</th></tr>";
 
@@ -125,18 +126,19 @@ foreach my $s (@$sections_ref) {
     my $edit_url = "edit_section.cgi?section=".&WebminCore::urlize($s->{name});
     my $del_url  = "delete_share.cgi?section=".&WebminCore::urlize($s->{name});
 
+    my $perm_url = "edit_permissions.cgi?section=".&WebminCore::urlize($s->{name});
     print "<tr data-section='$s->{name}'>";
     print "<td><span class='mn-share-name'$name_style>$s->{name}</span><span class='mn-share-path'>$path</span></td>";
     print "<td>$owner</td>";
-    print "<td class='mn-perm-cell mn-mono'>$perm_str $perm_owner</td>";
-    print "<td style='white-space:nowrap;'>";
+    print "<td class='mn-perm-cell'>$perm_str $perm_owner</td>";
+    print "<td style='text-align:center; white-space:nowrap;'>";
     print "<a class='mn-icon-btn' href='$edit_url' title='Edit share'><i class='ti ti-edit'></i></a>";
-    my $perm_url = "edit_permissions.cgi?section=".&WebminCore::urlize($s->{name});
     print "<a class='mn-icon-btn' href='$perm_url' title='Change permissions'><i class='ti ti-folder-cog'></i></a>";
     print "<a class='mn-icon-btn mn-icon-btn-del' href='$del_url' title='Delete share'><i class='ti ti-trash'></i></a>";
     print "</td></tr>";
 }
 print "</table>";
+print "</div>"; # mn-table-wrap
 
 # Permission-Panel Container (versteckt, wird pro Share befüllt)
 print "<div id='perm-panel' style='display:none; border-top:1px solid var(--mn-border);'>";
@@ -190,6 +192,7 @@ print "</div>"; # mn-section
 # ── Users Tabelle ────────────────────────────────────────────────
 print "<div class='mn-section'>";
 print "<div class='mn-section-head'><i class='ti ti-users' style='font-size:13px;'></i> System & Samba users</div>";
+print "<div class='mn-table-wrap'>";
 print "<table class='mn-table'>";
 print "<tr><th>Username</th><th>UID</th><th>Assigned shares</th><th>Actions</th></tr>";
 
@@ -212,11 +215,11 @@ foreach my $u (sort keys %users) {
     my $shares_str = @assigned ? join(", ", @assigned) : "<span style='color:var(--mn-muted); font-style:italic;'>None</span>";
     print "<tr>";
     if ($uid eq "Ghost") {
-        print "<td><b style='color:var(--mn-red);'>$u</b></td><td style='color:var(--mn-red); font-size:12px;'>Missing in OS</td><td>$shares_str</td>";
-        print "<td><a class='mn-icon-btn mn-icon-btn-del' href='cleanup_ghost_user.cgi?user=".&WebminCore::urlize($u)."' title='Clean from config'><i class='ti ti-ghost'></i></a></td>";
+        print "<td><b style='color:var(--mn-red);'>$u</b></td><td style='color:var(--mn-red); font-size:13px;'>Missing in OS</td><td>$shares_str</td>";
+        print "<td style='text-align:center;'><a class='mn-icon-btn mn-icon-btn-del' href='cleanup_ghost_user.cgi?user=".&WebminCore::urlize($u)."' title='Clean from config'><i class='ti ti-ghost'></i></a></td>";
     } else {
         print "<td><b>$u</b></td><td class='mn-mono'>$uid</td><td>$shares_str</td>";
-        print "<td style='white-space:nowrap;'>";
+        print "<td style='text-align:center; white-space:nowrap;'>";
         print "<a class='mn-icon-btn' href='change_password.cgi?user=".&WebminCore::urlize($u)."' title='Change password'><i class='ti ti-key'></i></a>";
         print "<a class='mn-icon-btn' href='edit_user_shares.cgi?user=".&WebminCore::urlize($u)."' title='Edit shares'><i class='ti ti-share'></i></a>";
         print "<a class='mn-icon-btn mn-icon-btn-del' href='delete_user_form.cgi?user=".&WebminCore::urlize($u)."' title='Delete user'><i class='ti ti-trash'></i></a>";
@@ -224,7 +227,9 @@ foreach my $u (sort keys %users) {
     }
     print "</tr>";
 }
-print "</table></div>";
+print "</table>";
+print "</div>"; # mn-table-wrap
+print "</div>"; # mn-section
 
 # ── Quick Action Panels (versteckt, werden per JS eingeblendet) ──
 

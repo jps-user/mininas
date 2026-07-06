@@ -24,7 +24,7 @@ cd /usr/share/webmin
 git clone https://github.com/jps-user/mininas.git mininas
 chmod +x mininas/*.cgi
 ```
-Then restart Webmin and find MiniNAS under "Others" in the Webmin menu.
+Then restart Webmin and find MiniNAS under "Tools" in the Webmin menu.
 
 ## Philosophy
 See [PHILOSOPHY.md](PHILOSOPHY.md)

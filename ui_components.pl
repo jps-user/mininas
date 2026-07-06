@@ -29,7 +29,8 @@ sub mn_head {
     --mn-mono:     'Courier New', monospace;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body, .mn-wrap { font-family: var(--mn-font); color: var(--mn-text); font-size: 17px; line-height: 1.5; }
+body, .mn-wrap { font-family: var(--mn-font) !important; color: var(--mn-text); font-size: 17px; line-height: 1.5; }
+.mn-wrap table { border-spacing: 0 !important; }
 .mn-wrap { max-width: 1100px; padding: 0 4px; }
 
 /* Kacheln */
@@ -104,24 +105,27 @@ button.mn-qa-btn { font-size: inherit; }
 .mn-section { background: var(--mn-surface); border: 0.5px solid var(--mn-border2);
     border-radius: var(--mn-radius); margin-bottom: 12px; overflow: hidden; }
 .mn-section-head { font-size: 12px; font-weight: 500; color: var(--mn-muted); text-transform: uppercase;
-    letter-spacing: 0.07em; padding: 10px 20px 6px; border-bottom: 0.5px solid var(--mn-border); }
-.mn-table { width: 100%; border-collapse: collapse; font-size: 14px; table-layout: fixed; }
-.mn-table th { text-align: left; color: var(--mn-muted); font-weight: 400;
-    padding: 8px 12px; border-bottom: 0.5px solid var(--mn-border); font-size: 13px; }
-.mn-table td { padding: 9px 12px; border-bottom: 0.5px solid var(--mn-border); vertical-align: middle; }
-.mn-table tr:last-child td { border-bottom: none; }
+    letter-spacing: 0.07em; padding: 10px 16px !important; border-bottom: 0.5px solid var(--mn-border); }
+
+/* Tabellen-Wrapper: alleiniger Ort für horizontalen Innenabstand der Tabelle.
+   !important ist hier notwendig, weil Webmin's Authentic Theme eine hochspezifische
+   Regel "table td { padding: 0 }" mit !important mitbringt, die sonst gewinnt. */
+.mn-table-wrap { padding: 0 16px !important; }
+
+.mn-table { width: 100%; border-collapse: collapse !important; font-size: 14px; }
+.mn-table th { text-align: left; color: var(--mn-muted); font-weight: 400 !important;
+    padding: 10px 12px !important; border-bottom: 0.5px solid var(--mn-border); font-size: 13px; }
+.mn-table td { padding: 10px 12px !important; border-bottom: 0.5px solid var(--mn-border) !important; vertical-align: middle; }
+.mn-table tr:last-child td { border-bottom: none !important; }
 .mn-table tr:hover td { background: var(--mn-surface2); }
+.mn-table th:first-child, .mn-table td:first-child { padding-left: 0 !important; }
+.mn-table th:last-child,  .mn-table td:last-child  { padding-right: 0 !important; text-align: center; }
 .mn-mono { font-family: var(--mn-font); font-size: 13px; color: var(--mn-muted); }
 
-/* Gemeinsames Spaltenraster für Shares + Users Tabelle (identische Breiten = vertikal ausgerichtet) */
-.mn-table th:first-child, .mn-table td:first-child { padding-left: 20px; width: 26%; }
-.mn-table th:last-child,  .mn-table td:last-child  { padding-right: 20px; text-align: center; width: 130px; }
-.mn-table th:nth-child(2), .mn-table td:nth-child(2) { width: 16%; }
-.mn-table th:nth-child(3), .mn-table td:nth-child(3) { width: auto; }
-
-/* Share-Zeile: Name + Owner + Perm + Actions auf einer Zeile, Pfad darunter */
+/* Share-Zeile */
 .mn-share-name { display: block; font-weight: 500; }
 .mn-share-path { display: block; font-size: 12px; color: var(--mn-muted); margin-top: 2px; }
+
 
 /* Icon-Buttons */
 .mn-icon-btn { display: inline-flex; align-items: center; justify-content: center;
@@ -195,45 +199,6 @@ button.mn-qa-btn { font-size: inherit; }
 HTML
 }
 
-# ── Log-Einträge lesen (letzte N Zeilen) ────────────────────────
-sub mn_read_log {
-    my ($n) = @_;
-    $n ||= 8;
-    my $logfile = "/var/log/mininas.log";
-    return () unless -r $logfile;
-    open(my $fh, '<', $logfile) or return ();
-    my @lines = <$fh>;
-    close($fh);
-    my @last = reverse(splice(@lines, -$n));
-    my @entries;
-    foreach my $line (@last) {
-        chomp $line;
-        # Format: [Mon Jun 29 09:00:00 2026] [ACTION] message
-        if ($line =~ /\[([^\]]+)\]\s*\[([^\]]+)\]\s*(.+)/) {
-            my ($ts, $action, $msg) = ($1, $2, $3);
-            # Uhrzeit kürzen: nur HH:MM
-            my $time = ($ts =~ /(\d{2}:\d{2})/) ? $1 : "—";
-            push @entries, { time => $time, action => $action, msg => $msg };
-        }
-    }
-    return @entries;
-}
-
-# ── Action→Icon Mapping ─────────────────────────────────────────
-sub mn_log_icon {
-    my ($action) = @_;
-    my %icons = (
-        SHARE_EDIT   => 'ti-edit',
-        SHARE_SAVE   => 'ti-device-floppy',
-        USER_CREATE  => 'ti-user-plus',
-        USER_DELETE  => 'ti-user-minus',
-        PASSWD_CHANGE=> 'ti-key',
-        SHARES_SAVE  => 'ti-share',
-        GHOST_CLEAN  => 'ti-ghost',
-        DELETED      => 'ti-trash',
-        FIX_PERMS    => 'ti-shield-check',
-    );
-    return $icons{$action} || 'ti-activity';
-}
+# mn_read_log und mn_log_icon sind in mininas-lib.pl definiert
 
 1;

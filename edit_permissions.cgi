@@ -75,17 +75,17 @@ print "</div></div>";
 # Checkbox-Matrix
 print "<table style='width:100%; border-collapse:collapse; margin:16px 0; font-size:15px;'>";
 print "<tr>";
-print "<th style='text-align:left; color:var(--mn-muted); font-weight:400; padding:6px 0; width:100px;'></th>";
-print "<th style='text-align:center; color:var(--mn-muted); font-weight:400; padding:6px 20px;'>Owner</th>";
-print "<th style='text-align:center; color:var(--mn-muted); font-weight:400; padding:6px 20px;'>Group</th>";
-print "<th style='text-align:center; color:var(--mn-muted); font-weight:400; padding:6px 20px;'>Others</th>";
+print "<th style='text-align:left; color:var(--mn-muted); font-weight:400; padding:6px 0; width:120px;'></th>";
+print "<th style='text-align:center; color:var(--mn-muted); font-weight:400; padding:6px 0; width:120px;'>Owner</th>";
+print "<th style='text-align:center; color:var(--mn-muted); font-weight:400; padding:6px 0; width:120px;'>Group</th>";
+print "<th style='text-align:center; color:var(--mn-muted); font-weight:400; padding:6px 0; width:120px;'>Others</th>";
 print "</tr>";
 
 foreach my $row (['Read','r'], ['Write','w'], ['Execute','x']) {
     print "<tr>";
     print "<td style='padding:10px 0; color:var(--mn-text);'>$row->[0]</td>";
     foreach my $who (qw(u g o)) {
-        print "<td style='text-align:center;'>";
+        print "<td style='text-align:center; vertical-align:middle;'>";
         print "<input type='checkbox' id='perm-$who-$row->[1]' onchange='MnPerm.updateModeField()'";
         print " style='width:18px; height:18px; accent-color:var(--mn-accent); cursor:pointer;'>";
         print "</td>";
@@ -97,7 +97,7 @@ print "</table>";
 # Status + Buttons
 print "<div style='display:flex; align-items:center; gap:10px; margin-top:4px;'>";
 print "<button class='mn-btn mn-btn-primary' onclick='mnApplyAndRedirect()'><i class='ti ti-check'></i> Apply</button>";
-print "<a href='index.cgi' class='mn-btn'><i class='ti ti-x'></i> Cancel</a>";
+print "<a href='index.cgi' class='mn-btn' id='mn-back-link'><i class='ti ti-x'></i> Cancel</a>";
 print "<span id='perm-status' style='font-size:13px; color:var(--mn-muted);'></span>";
 print "</div>";
 print "</div>";
@@ -106,22 +106,53 @@ print "</div>";
 print "<input type='hidden' id='perm-section-name' value='$sec'>";
 
 print "<script>
-// Section setzen + Checkboxen aus aktuellem Mode vorbelegen
-MnPerm.section = document.getElementById('perm-section-name').value;
-MnPerm.fromMode('$cur_mode');
+// Inline fromMode - unabhängig von externer Script-Ladereihenfolge
+function mnInitPermissions() {
+  var mode = '$cur_mode';
+  var digits = mode.replace(/^0+/, '');
+  while (digits.length < 3) digits = '0' + digits;
+  var vals = { u: parseInt(digits[0],10), g: parseInt(digits[1],10), o: parseInt(digits[2],10) };
+  ['u','g','o'].forEach(function(who) {
+    var v = vals[who];
+    var r = document.getElementById('perm-'+who+'-r');
+    var w = document.getElementById('perm-'+who+'-w');
+    var x = document.getElementById('perm-'+who+'-x');
+    if (r) r.checked = !!(v & 4);
+    if (w) w.checked = !!(v & 2);
+    if (x) x.checked = !!(v & 1);
+  });
+  // Mode-Feld aktualisieren
+  if (typeof MnPerm !== 'undefined') {
+    MnPerm.section = '$sec';
+    MnPerm.updateModeField();
+  }
+}
+
+// Mehrfach-Fallback: sofort, DOMContentLoaded, und window.onload
+// damit es unabhängig vom Browser-Render-Timing funktioniert
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  setTimeout(mnInitPermissions, 0);
+} else {
+  document.addEventListener('DOMContentLoaded', mnInitPermissions);
+}
+window.addEventListener('load', function() {
+  var cb = document.getElementById('perm-u-r');
+  if (cb && !cb.checked && '$cur_mode'.charAt(1) >= '4') {
+    mnInitPermissions();
+  }
+});
 
 function mnApplyAndRedirect() {
-  MnPerm.apply(function() {
-    setTimeout(function() {
-      // Webmin-konformer Redirect: top.location statt window.location
-      // damit der äussere Webmin-Frame neu lädt und die Sidebar erhalten bleibt
-      if (window.top && window.top !== window) {
-        window.top.location.href = window.location.href.replace('edit_permissions.cgi', 'index.cgi').replace(/\?.*$/, '');
-      } else {
-        window.location.href = 'index.cgi';
-      }
-    }, 800);
-  });
+  if (typeof MnPerm !== 'undefined') {
+    MnPerm.section = '$sec';
+    MnPerm.apply(function(newPerm) {
+      // Webmin-konformer Redirect: normaler Link-Click statt location-Manipulation
+      // Verhindert dass Webmin den Frame-Kontext verliert
+      setTimeout(function() {
+        document.getElementById('mn-back-link').click();
+      }, 600);
+    });
+  }
 }
 </script>";
 
