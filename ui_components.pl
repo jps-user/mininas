@@ -192,6 +192,76 @@ button.mn-qa-btn { font-size: inherit; }
 .mn-del-card:has(input[value=full_cleanup]:checked){ border-color: var(--mn-red);    background: #2a1a1a; }
 .mn-del-card-title { font-size: 15px; font-weight: 500; margin-bottom: 3px; }
 .mn-del-card-desc  { font-size: 13px; color: var(--mn-muted); }
+
+/* ── Light Mode (Webmin-konform) ──────────────────────────────────
+   Authentic Theme setzt data-night-mode="0" auf <html> im Light Mode.
+   @media prefers-color-scheme ist ein Fallback für den seltenen Fall,
+   dass MiniNAS ausserhalb des Webmin-Chromes geladen wird. */
+
+html[data-night-mode="0"] {
+    --mn-bg:       #f4f6f9;
+    --mn-surface:  #ffffff;
+    --mn-surface2: #f1f3f6;
+    --mn-border:   #e3e6ec;
+    --mn-border2:  #cbd5e1;
+    --mn-text:     #1e293b;
+    --mn-muted:    #64748b;
+    --mn-accent:   #1a73e8;
+    --mn-green:    #1e7e34;
+    --mn-amber:    #b06000;
+    --mn-red:      #d93025;
+    --mn-purple:   #6b46c1;
+}
+
+html[data-night-mode="0"] .mn-input,
+html[data-night-mode="0"] .mn-select,
+html[data-night-mode="0"] .mn-textarea { background: #ffffff; }
+
+html[data-night-mode="0"] .badge-ok   { background: #e6f4ea; color: #137333; }
+html[data-night-mode="0"] .badge-warn { background: #fef7e0; color: #b06000; }
+html[data-night-mode="0"] .badge-err  { background: #fce8e6; color: #c5221f; }
+html[data-night-mode="0"] .badge-rw   { background: #e6f4ea; color: #137333; }
+html[data-night-mode="0"] .badge-ro   { background: #fef7e0; color: #8a7700; }
+html[data-night-mode="0"] .badge-tm   { background: #f3e8fd; color: #7627bb; }
+
+html[data-night-mode="0"] .qa-green  { background: #e6f4ea; color: #137333; }
+html[data-night-mode="0"] .qa-blue   { background: #e8f0fe; color: #1a73e8; }
+html[data-night-mode="0"] .qa-purple { background: #f3e8fd; color: #7627bb; }
+html[data-night-mode="0"] .qa-amber  { background: #fef7e0; color: #b06000; }
+
+html[data-night-mode="0"] .mn-btn-primary { background: #e8f0fe; border-color: var(--mn-accent); color: var(--mn-accent); }
+html[data-night-mode="0"] .mn-btn-primary:hover { background: #d2e3fc; }
+html[data-night-mode="0"] .mn-btn-danger  { background: #fce8e6; border-color: var(--mn-red); color: var(--mn-red); }
+html[data-night-mode="0"] .mn-btn-danger:hover  { background: #fad2cf; }
+html[data-night-mode="0"] .mn-btn:hover,
+html[data-night-mode="0"] .mn-qa-btn:hover,
+html[data-night-mode="0"] .mn-card-label:hover,
+html[data-night-mode="0"] .mn-del-card:hover { border-color: #94a3b8; background: var(--mn-surface2); }
+
+html[data-night-mode="0"] .mn-icon-btn:hover { border-color: #94a3b8; }
+html[data-night-mode="0"] .mn-icon-btn-del:hover { background: #fce8e6; border-color: var(--mn-red); color: var(--mn-red); }
+
+html[data-night-mode="0"] .mn-card-radio:checked + .mn-card-label { background: #e8f0fe; }
+html[data-night-mode="0"] .mn-del-card:has(input[value=share_only]:checked),
+html[data-night-mode="0"] .mn-del-card:has(input[value=config_only]:checked) { background: #e8f0fe; }
+html[data-night-mode="0"] .mn-del-card:has(input[value=full_cleanup]:checked) { background: #fce8e6; }
+
+@media (prefers-color-scheme: light) {
+    html:not([data-night-mode]) {
+        --mn-bg:       #f4f6f9;
+        --mn-surface:  #ffffff;
+        --mn-surface2: #f1f3f6;
+        --mn-border:   #e3e6ec;
+        --mn-border2:  #cbd5e1;
+        --mn-text:     #1e293b;
+        --mn-muted:    #64748b;
+        --mn-accent:   #1a73e8;
+        --mn-green:    #1e7e34;
+        --mn-amber:    #b06000;
+        --mn-red:      #d93025;
+        --mn-purple:   #6b46c1;
+    }
+}
 </style>
 <script src="ui_widgets.js"></script>
 HTML
