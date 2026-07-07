@@ -28,3 +28,5 @@ Then restart Webmin and find MiniNAS under "Tools" in the Webmin menu.
 
 ## Philosophy
 See [PHILOSOPHY.md](PHILOSOPHY.md)
+
+<img width="1227" height="1120" alt="image" src="https://github.com/user-attachments/assets/b2c45545-d925-4714-ba11-c10c4498287e" />
