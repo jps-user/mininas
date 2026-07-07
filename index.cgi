@@ -56,7 +56,6 @@ my $share_count = scalar(grep { $_->{name} ne 'global' } @$sections_ref);
 my $user_count  = scalar(keys %users);
 my $tm_count    = scalar(grep { $_->{raw} =~ /fruit:time machine\s*=\s*yes/i } @$sections_ref);
 
-my @share_names = map { $_->{name} } grep { $_->{name} ne 'global' } @$sections_ref;
 
 # ── Kacheln: Samba Status (+ Reload) und Shares (+ Global Settings) ──
 print "<div class='mn-tiles'>";
@@ -87,8 +86,8 @@ print "</div>"; # mn-tiles
 print "<div class='mn-section'>";
 print "<div class='mn-section-head'><i class='ti ti-bolt' style='font-size:13px;'></i> Quick actions</div>";
 print "<div style='padding:12px;'><div class='mn-qa-grid'>";
-print "<button type='button' class='mn-qa-btn' onclick=\"mnTogglePanel('panel-newshare')\"><div class='mn-qa-icon qa-green'><i class='ti ti-folder-plus'></i></div><div><div class='mn-qa-label'>New share</div><div class='mn-qa-sub'>Create + provision</div></div></button>";
-print "<button type='button' class='mn-qa-btn' onclick=\"mnTogglePanel('panel-newuser')\"><div class='mn-qa-icon qa-blue'><i class='ti ti-user-plus'></i></div><div><div class='mn-qa-label'>New user</div><div class='mn-qa-sub'>OS + Samba</div></div></button>";
+print "<a class='mn-qa-btn' href='provision_user.cgi?mode=isolated'><div class='mn-qa-icon qa-green'><i class='ti ti-folder-plus'></i></div><div><div class='mn-qa-label'>New share</div><div class='mn-qa-sub'>Create + provision</div></div></a>";
+print "<a class='mn-qa-btn' href='provision_user.cgi?mode=group'><div class='mn-qa-icon qa-blue'><i class='ti ti-user-plus'></i></div><div><div class='mn-qa-label'>New user</div><div class='mn-qa-sub'>OS + Samba</div></div></a>";
 print "<button type='button' class='mn-qa-btn' id='testparm-btn' onclick='mnRunTestparm()'><div class='mn-qa-icon qa-amber' id='testparm-icon'><i class='ti ti-file-check'></i></div><div><div class='mn-qa-label'>Test config</div><div class='mn-qa-sub' id='testparm-result'>Run testparm</div></div></button>";
 print "</div></div></div>";
 
@@ -220,6 +219,7 @@ foreach my $u (sort keys %users) {
         print "<td style='text-align:center; white-space:nowrap;'>";
         print "<a class='mn-icon-btn' href='change_password.cgi?user=".&WebminCore::urlize($u)."' title='Change password'><i class='ti ti-key'></i></a>";
         print "<a class='mn-icon-btn' href='edit_user_shares.cgi?user=".&WebminCore::urlize($u)."' title='Edit shares'><i class='ti ti-share'></i></a>";
+        print "<a class='mn-icon-btn' href='manage_home.cgi?user=".&WebminCore::urlize($u)."' title='Home directory'><i class='ti ti-home'></i></a>";
         print "<a class='mn-icon-btn mn-icon-btn-del' href='delete_user_form.cgi?user=".&WebminCore::urlize($u)."' title='Delete user'><i class='ti ti-trash'></i></a>";
         print "</td>";
     }
@@ -229,65 +229,5 @@ print "</table>";
 print "</div>"; # mn-table-wrap
 print "</div>"; # mn-section
 
-# ── Quick Action Panels (versteckt, werden per JS eingeblendet) ──
-
-# Panel: New User & Provisioning (zusammengefasst für "New share" und "New user")
-print "<div id='panel-newshare' class='mn-panel' style='display:none;'>";
-print "<div class='mn-section'>";
-print "<div class='mn-section-head'><i class='ti ti-folder-plus' style='font-size:13px;'></i> New share &amp; user provisioning <button type='button' class='mn-panel-close' onclick=\"mnTogglePanel('panel-newshare')\"><i class='ti ti-x'></i></button></div>";
-print "<div style='padding:16px;'>";
-print &mn_provisioning_form(\@share_names, 'standard');
-print "</div></div></div>";
-
-print "<div id='panel-newuser' class='mn-panel' style='display:none;'>";
-print "<div class='mn-section'>";
-print "<div class='mn-section-head'><i class='ti ti-user-plus' style='font-size:13px;'></i> New user <button type='button' class='mn-panel-close' onclick=\"mnTogglePanel('panel-newuser')\"><i class='ti ti-x'></i></button></div>";
-print "<div style='padding:16px;'>";
-print &mn_provisioning_form(\@share_names, 'standard');
-print "</div></div></div>";
-
-# ui_widgets.js wird via mn_head() geladen - kein inline JS nötig
-
 print "</div>"; # mn-wrap
 &WebminCore::ui_print_footer("/", "Return to Webmin");
-
-# ── Helper: Provisioning Formular bauen ──────────────────────────
-sub mn_provisioning_form {
-    my ($share_names_ref, $default_type) = @_;
-    my $tm_selected  = ($default_type eq 'timemachine') ? 'selected' : '';
-    my $std_selected = ($default_type eq 'standard')    ? 'selected' : '';
-
-    my $html = "<form action='create_user.cgi' method='post'>";
-    $html .= "<div class='mn-form-row'>";
-    $html .= "<div class='mn-form-col'><label class='mn-label'>Username</label><input class='mn-input' type='text' name='username' required placeholder='lowercase, no spaces'></div>";
-    $html .= "<div class='mn-form-col'><label class='mn-label'>Password</label><input class='mn-input' type='password' name='password' required></div>";
-    $html .= "</div>";
-
-    $html .= "<div class='mn-form-row'>";
-
-    $html .= "<div class='mn-form-col'>";
-    $html .= "<input type='radio' name='creation_mode' value='isolated' id='mode_a_$default_type' checked class='mn-card-radio'>";
-    $html .= "<label for='mode_a_$default_type' class='mn-card-label'>";
-    $html .= "<div class='mn-card-title'><i class='ti ti-folder-plus' style='color:var(--mn-green); margin-right:6px;'></i>Isolated personal share</div>";
-    $html .= "<div class='mn-card-desc' style='margin-bottom:12px;'>Creates a new directory and exclusive Samba share for this user.</div>";
-    $html .= "<label class='mn-label'>Base path</label><select class='mn-select' name='base_path' style='margin-bottom:8px;'><option value='/mnt'>/mnt/</option><option value='/srv'>/srv/</option></select>";
-    $html .= "<label class='mn-label'>Folder name</label><input class='mn-input' type='text' name='folder_name' placeholder='leave blank = username' style='margin-bottom:8px;'>";
-    $html .= "<label class='mn-label'>Share type</label><select class='mn-select' name='share_type'><option value='standard' $std_selected>Standard Samba share</option><option value='timemachine' $tm_selected>TimeMachine backup target</option></select>";
-    $html .= "</label></div>";
-
-    $html .= "<div class='mn-form-col'>";
-    $html .= "<input type='radio' name='creation_mode' value='group' id='mode_b_$default_type' class='mn-card-radio'>";
-    $html .= "<label for='mode_b_$default_type' class='mn-card-label'>";
-    $html .= "<div class='mn-card-title'><i class='ti ti-users' style='color:var(--mn-accent); margin-right:6px;'></i>Add to existing share</div>";
-    $html .= "<div class='mn-card-desc' style='margin-bottom:12px;'>Creates the system user and adds them to an existing share.</div>";
-    $html .= "<label class='mn-label'>Target share</label><select class='mn-select' name='target_group_share' style='margin-bottom:8px;'>";
-    foreach my $sn (@$share_names_ref) { $html .= "<option value='$sn'>$sn</option>"; }
-    $html .= "</select>";
-    $html .= "<label class='mn-label'>Access level</label><select class='mn-select' name='group_perms'><option value='rw'>Read/Write</option><option value='ro'>Read-only</option></select>";
-    $html .= "</label></div>";
-
-    $html .= "</div>"; # form-row
-    $html .= "<button type='submit' class='mn-btn mn-btn-primary' style='margin-top:4px;'><i class='ti ti-check'></i> Create user</button>";
-    $html .= "</form>";
-    return $html;
-}

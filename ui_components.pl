@@ -45,10 +45,8 @@ body, .mn-wrap { font-family: var(--mn-font) !important; color: var(--mn-text); 
 .mn-tile-action:hover { text-decoration: underline; }
 
 /* Quick Action Panels (ausklappbar) */
-.mn-panel { margin-bottom: 12px; }
-.mn-panel-close { float: right; background: none; border: none; color: var(--mn-muted);
-    cursor: pointer; font-size: 15px; padding: 2px 6px; }
-.mn-panel-close:hover { color: var(--mn-text); }
+/* New Share/New User sind jetzt eigene Seiten statt Inline-Panels;
+   die Permission-Panel im Dashboard stylt sich direkt inline. */
 
 /* Status Bar */
 .mn-statusbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center;

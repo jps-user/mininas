@@ -177,11 +177,62 @@ sub mn_testparm {
 # ── Linux-User-Verwaltung ────────────────────────────────────────
 
 # Legt einen Linux-System-User an (ohne Login-Shell, für Samba-only Zugriff).
+# $create_home: 1 = Home-Verzeichnis unter /home/$username anlegen, 0 = keins.
 # Gibt 1 bei Erfolg, 0 bei Fehler zurück.
 sub mn_create_os_user {
+    my ($username, $create_home) = @_;
+    return 0 unless $username;
+    my @cmd = ('useradd', '-s', '/usr/sbin/nologin');
+    if ($create_home) {
+        push(@cmd, '-m', '-d', "/home/$username");
+    } else {
+        push(@cmd, '-M');    # explizit: kein Home-Verzeichnis
+    }
+    push(@cmd, $username);
+    system(@cmd);
+    return ($? == 0) ? 1 : 0;
+}
+
+# Gibt den aktuellen Home-Pfad eines Users zurück, oder '' wenn keiner existiert
+# oder der User unbekannt ist.
+sub mn_get_home_dir {
+    my ($username) = @_;
+    return '' unless $username;
+    my @pw = getpwnam($username);
+    return '' unless @pw;
+    my $home = $pw[7];
+    return ($home && -d $home) ? $home : '';
+}
+
+# Legt nachträglich ein Home-Verzeichnis für einen bestehenden User an.
+# Gibt 1 bei Erfolg, 0 bei Fehler zurück.
+sub mn_add_home_dir {
+    my ($username) = @_;
+    return 0 unless $username && mn_validate_username($username, 1);
+    my $home = "/home/$username";
+    return 0 if -d $home;    # existiert schon
+
+    system('mkdir', '-p', $home);
+    return 0 if $? != 0;
+    system('chown', "$username:$username", $home);
+    system('chmod', '0750', $home);
+    system('usermod', '-d', $home, $username);
+    return ($? == 0) ? 1 : 0;
+}
+
+# Entfernt das Home-Verzeichnis eines Users unwiderruflich.
+# Nur Pfade unter /home/ werden akzeptiert (Sicherheits-Whitelist).
+# Gibt 1 bei Erfolg, 0 bei Fehler zurück.
+sub mn_remove_home_dir {
     my ($username) = @_;
     return 0 unless $username;
-    system('useradd', '-m', '-s', '/usr/sbin/nologin', $username);
+    my $home = mn_get_home_dir($username);
+    return 1 unless $home;                      # kein Home vorhanden - nichts zu tun
+    return 0 unless $home =~ m{^/home/[a-zA-Z0-9_.\-]+$};   # Sicherheits-Whitelist
+
+    system('rm', '-rf', $home);
+    return 0 if $? != 0;
+    system('usermod', '-d', '/nonexistent', $username);
     return ($? == 0) ? 1 : 0;
 }
 

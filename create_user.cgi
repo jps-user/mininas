@@ -17,7 +17,7 @@ my $mode     = $in{'creation_mode'};
     unless mn_validate_username($username, 0);
 
 # 1. OS-User anlegen
-mn_create_os_user($username)
+mn_create_os_user($username, $in{'create_home'} ? 1 : 0)
     or &WebminCore::error("Failed to create Linux system user '$username'. Does it already exist?");
 
 # 2. Samba-Passwort setzen

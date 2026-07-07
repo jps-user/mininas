@@ -4,17 +4,9 @@
  * Vanilla JS, keine Abhängigkeiten
  */
 
-// ── Panel Toggle ─────────────────────────────────────────────────
-function mnTogglePanel(id) {
-  document.querySelectorAll('.mn-panel').forEach(function(p) {
-    if (p.id !== id) p.style.display = 'none';
-  });
-  var el = document.getElementById(id);
-  el.style.display = (el.style.display === 'none') ? 'block' : 'none';
-  if (el.style.display === 'block') {
-    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-}
+// ── Panel Toggle wurde entfernt: New Share/New User sind jetzt eigene
+// Seiten (provision_user.cgi) statt Inline-Panels. Die Permission-Panel
+// im Dashboard nutzt ihre eigene mnPermPanel()-Logik weiter unten.
 
 // ── Testparm AJAX ────────────────────────────────────────────────
 function mnRunTestparm() {
