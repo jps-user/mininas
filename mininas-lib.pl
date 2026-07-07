@@ -74,8 +74,8 @@ sub mn_write_smb_conf {
         &WebminCore::error("Failed to write smb.conf: $!");
     }
 
-    system("testparm -s \Q$smb_conf\E >/dev/null 2>&1");
-    if ($? != 0) {
+    my ($tp_ok, undef) = mn_testparm();
+    if (!$tp_ok) {
         system('cp', $bak_conf, $smb_conf);
         unlink($bak_conf);
         &WebminCore::unlock_file($smb_conf);
@@ -154,6 +154,85 @@ sub mn_remove_user_from_conf {
 sub reload_samba {
     system('smbcontrol all reload-config >/dev/null 2>&1');
     system('systemctl reload smbd >/dev/null 2>&1');
+}
+
+# Prüft ob ein systemd-Service aktiv ist. Gibt 1/0 zurück.
+sub mn_service_active {
+    my ($service) = @_;
+    return 0 unless $service;
+    my $status = `systemctl is-active \Q$service\E 2>/dev/null`;
+    chomp $status;
+    return ($status eq 'active') ? 1 : 0;
+}
+
+# Führt testparm gegen die aktuelle smb.conf aus.
+# Gibt ($ok, $raw_output) zurück. $ok ist 1 bei Erfolg, 0 bei Fehler.
+sub mn_testparm {
+    my $smb_conf = get_smb_conf_path();
+    my $output = `testparm -s \Q$smb_conf\E 2>&1`;
+    my $ok = ($? == 0) ? 1 : 0;
+    return ($ok, $output);
+}
+
+# ── Linux-User-Verwaltung ────────────────────────────────────────
+
+# Legt einen Linux-System-User an (ohne Login-Shell, für Samba-only Zugriff).
+# Gibt 1 bei Erfolg, 0 bei Fehler zurück.
+sub mn_create_os_user {
+    my ($username) = @_;
+    return 0 unless $username;
+    system('useradd', '-m', '-s', '/usr/sbin/nologin', $username);
+    return ($? == 0) ? 1 : 0;
+}
+
+# Setzt das Samba-Passwort für einen bestehenden User (OS oder Samba-only).
+# Gibt 1 bei Erfolg, 0 bei Fehler zurück.
+sub mn_set_samba_password {
+    my ($username, $password) = @_;
+    return 0 unless $username && $password;
+    if (open(my $smb, '|-', 'smbpasswd', '-s', '-a', $username)) {
+        print $smb "$password\n$password\n";
+        close($smb);
+        return ($? == 0) ? 1 : 0;
+    }
+    return 0;
+}
+
+# Entfernt einen User komplett aus Samba und dem Linux-System.
+# Wird nur bei 'full_cleanup' aufgerufen, niemals bei 'config_only'.
+sub mn_delete_os_user {
+    my ($username) = @_;
+    return 0 unless $username;
+    system('smbpasswd', '-x', $username);
+    system('userdel', '-r', $username);
+    return 1;
+}
+
+# ── Filesystem-Berechtigungen ─────────────────────────────────────
+
+# Setzt Owner:Group und Mode auf einen Pfad.
+# Gibt 1 bei Erfolg, 0 bei Fehler zurück (chown ODER chmod fehlgeschlagen).
+sub mn_set_ownership {
+    my ($path, $owner, $group, $mode) = @_;
+    return 0 unless $path && $owner;
+    $group ||= 'sambashare';
+    $mode  ||= '0770';
+    system('chown', "$owner:$group", $path);
+    return 0 if $? != 0;
+    system('chmod', $mode, $path);
+    return 0 if $? != 0;
+    return 1;
+}
+
+# Legt ein Share-Verzeichnis an und setzt Standard-Berechtigungen (0770, sambashare).
+# Gibt 1 bei Erfolg, 0 bei Fehler zurück.
+sub mn_create_share_dir {
+    my ($path, $owner, $group, $mode) = @_;
+    return 0 unless $path;
+    system('mkdir', '-p', $path);
+    return 0 if $? != 0;
+    return 1 unless $owner;    # kein Owner angegeben: nur Verzeichnis anlegen
+    return mn_set_ownership($path, $owner, $group, $mode);
 }
 
 # ── Logging ──────────────────────────────────────────────────────

@@ -18,8 +18,7 @@ mn_remove_user_from_conf($u)
 
 # 2. OS-Deletion nur bei full_cleanup
 if ($mode eq 'full_cleanup') {
-    system('smbpasswd', '-x', $u);
-    system('userdel', '-r', $u);
+    mn_delete_os_user($u);
     write_mininas_log('USER_DELETE', "Full cleanup: $u removed from OS and config.");
 } else {
     system('smbcontrol', 'smbd', 'close-share', $u);

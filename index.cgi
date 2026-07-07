@@ -11,10 +11,8 @@ print mn_head();
 print "<div class='mn-wrap'>";
 
 # ── Daten sammeln ────────────────────────────────────────────────
-my $smbd_active = `systemctl is-active smbd 2>/dev/null`; chomp $smbd_active;
-my $nmbd_active = `systemctl is-active nmbd 2>/dev/null`; chomp $nmbd_active;
-my $smbd_ok = ($smbd_active eq 'active');
-my $nmbd_ok = ($nmbd_active eq 'active');
+my $smbd_ok = mn_service_active('smbd');
+my $nmbd_ok = mn_service_active('nmbd');
 
 # /proc/mounts
 my %mounted;

@@ -46,12 +46,9 @@ if ($is_global) {
             unless mn_validate_path($f_path);
 
         if ($path_action eq 'mkdir') {
-            system('mkdir', '-p', $f_path);
-            &WebminCore::error("Failed to create directory '$f_path'.") if $? != 0;
-            if (@rw_users) {
-                system('chown', "$rw_users[0]:sambashare", $f_path);
-                system('chmod', '0770', $f_path);
-            }
+            my $owner = @rw_users ? $rw_users[0] : undef;
+            mn_create_share_dir($f_path, $owner)
+                or &WebminCore::error("Failed to create directory '$f_path' or set ownership.");
         } elsif ($path_action eq 'rename') {
             if ($old_path && -d $old_path) {
                 system('mv', $old_path, $f_path);
@@ -61,12 +58,9 @@ if ($is_global) {
                     "smb.conf was NOT changed."
                 ) if $? != 0;
             } else {
-                system('mkdir', '-p', $f_path);
-                &WebminCore::error("Failed to create directory '$f_path'.") if $? != 0;
-                if (@rw_users) {
-                    system('chown', "$rw_users[0]:sambashare", $f_path);
-                    system('chmod', '0770', $f_path);
-                }
+                my $owner = @rw_users ? $rw_users[0] : undef;
+                mn_create_share_dir($f_path, $owner)
+                    or &WebminCore::error("Failed to create directory '$f_path' or set ownership.");
             }
         }
     }

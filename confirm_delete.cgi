@@ -48,8 +48,7 @@ if ($target && $mode eq 'full_cleanup') {
     }
     foreach my $u (sort keys %users_to_wipe) {
         next unless mn_validate_username($u, 0);
-        system('smbpasswd', '-x', $u);
-        system('userdel', '-r', $u);
+        mn_delete_os_user($u);
         step_ok("User removed: $u");
     }
 }

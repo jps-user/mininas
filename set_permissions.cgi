@@ -29,6 +29,8 @@ json_err("Path '$path' does not exist.")       unless -d $path;
 json_err("Path '$path' outside allowed directories (/mnt, /srv).")
     unless mn_validate_path($path);
 
+# chown/chmod bewusst granular (nicht mn_set_ownership), damit die JSON-Antwort
+# genau sagt ob chown oder chmod fehlschlug – wichtig für die AJAX-Fehleranzeige.
 system('chown', "$own:$grp", $path);
 json_err("chown $own:$grp failed. Do user and group exist?") if $? != 0;
 

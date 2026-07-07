@@ -17,15 +17,11 @@ my $mode     = $in{'creation_mode'};
     unless mn_validate_username($username, 0);
 
 # 1. OS-User anlegen
-system('useradd', '-m', '-s', '/usr/sbin/nologin', $username);
-&WebminCore::error("Failed to create Linux system user '$username'. Does it already exist?")
-    if $? != 0;
+mn_create_os_user($username)
+    or &WebminCore::error("Failed to create Linux system user '$username'. Does it already exist?");
 
 # 2. Samba-Passwort setzen
-if (open(my $smb, '|-', 'smbpasswd', '-s', '-a', $username)) {
-    print $smb "$password\n$password\n";
-    close($smb);
-}
+mn_set_samba_password($username, $password);
 
 my ($lines_ref, $sections_ref) = parse_smb_sections_v2();
 
@@ -38,9 +34,8 @@ if ($mode eq 'isolated') {
     &WebminCore::error('Invalid base path. Only /mnt and /srv are allowed.')
         unless mn_validate_path($path);
 
-    system('mkdir', '-p', $path);
-    system('chown', "$username:sambashare", $path);
-    system('chmod', '0770', $path);
+    mn_create_share_dir($path, $username)
+        or &WebminCore::error("Failed to create directory '$path' or set ownership.");
 
     # Share-Block aufbauen
     my $share_type = $in{'share_type'} || 'standard';
