@@ -204,3 +204,51 @@ function mnApplyPerms() {
     }
   });
 }
+
+// ── Sidebar (Hamburger-Menü, rechts) ─────────────────────────────
+// Öffnet sich von rechts über das Dashboard. Immer geschlossen beim Laden.
+// Beim Klick auf eine Aktion navigiert der Browser normal weg; bei
+// Rücksprung zum Dashboard ist die Sidebar wieder zu, da der Zustand
+// nicht persistiert wird (bewusst - kein localStorage).
+function mnSidebarOpen() {
+  var sb = document.getElementById('mn-sidebar');
+  var ov = document.getElementById('mn-sidebar-overlay');
+  var hb = document.querySelector('.mn-hamburger');
+  if (sb) sb.classList.add('mn-open');
+  if (ov) ov.classList.add('mn-open');
+  if (hb) hb.classList.add('mn-hidden');
+}
+
+function mnSidebarClose() {
+  var sb = document.getElementById('mn-sidebar');
+  var ov = document.getElementById('mn-sidebar-overlay');
+  var hb = document.querySelector('.mn-hamburger');
+  if (sb) sb.classList.remove('mn-open');
+  if (ov) ov.classList.remove('mn-open');
+  if (hb) hb.classList.remove('mn-hidden');
+}
+
+// ── Wake & measure (Disk-Kachel) ──────────────────────────────────
+function mnWakeAndMeasure() {
+  var btn = document.getElementById('wake-measure-btn');
+  var status = document.getElementById('wake-measure-status');
+  if (btn) { btn.disabled = true; }
+  if (status) { status.textContent = 'Waking disks...'; status.style.color = 'var(--mn-muted)'; }
+
+  fetch('update_cache.cgi')
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+      if (data.ok) {
+        if (status) { status.textContent = 'Updated ' + data.timestamp; status.style.color = 'var(--mn-green)'; }
+        // Dashboard neu laden, damit die frisch gemessenen Werte erscheinen.
+        setTimeout(function() { window.location.reload(); }, 600);
+      } else {
+        if (status) { status.textContent = 'Update failed'; status.style.color = 'var(--mn-red)'; }
+        if (btn) { btn.disabled = false; }
+      }
+    })
+    .catch(function() {
+      if (status) { status.textContent = 'Request failed'; status.style.color = 'var(--mn-red)'; }
+      if (btn) { btn.disabled = false; }
+    });
+}

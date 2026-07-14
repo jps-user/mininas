@@ -83,6 +83,7 @@ if (open(my $wfh, '>', $smb_conf)) {
 write_mininas_log('DELETED', "Share '$sec_name' removed (mode: $mode).");
 reload_samba();
 step_ok('Samba reloaded');
+mn_update_storage_cache();
 
 print "</div>";
 print "<div style='padding:0 16px 16px;'>";

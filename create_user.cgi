@@ -80,4 +80,5 @@ if ($mode eq 'isolated') {
 
 reload_samba();
 write_mininas_log('USER_CREATE', "Provisioned user $username via mode $mode.");
+mn_update_storage_cache();
 &WebminCore::redirect('index.cgi');

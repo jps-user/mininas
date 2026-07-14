@@ -56,8 +56,39 @@ my $share_count = scalar(grep { $_->{name} ne 'global' } @$sections_ref);
 my $user_count  = scalar(keys %users);
 my $tm_count    = scalar(grep { $_->{raw} =~ /fruit:time machine\s*=\s*yes/i } @$sections_ref);
 
+# Storage-Cache laden für Disk-Kacheln + Share-Usage-Spalte.
+# Option C: Beim Dashboard-Laden wird der Cache nur dann aktualisiert,
+# wenn /proc/diskstats seit der letzten Messung bereits Aktivität zeigt
+# (Disk ist dann ohnehin schon wach – kein zusätzliches Aufwecken).
+my $disks_ref  = mn_read_disks_conf();
+my $any_active = 0;
+foreach my $d (@$disks_ref) {
+    my $sleeping = mn_disk_is_sleeping($d->{dev});
+    if (defined($sleeping) && $sleeping == 0) { $any_active = 1; last; }
+}
+mn_update_storage_cache() if $any_active;
 
-# ── Kacheln: Samba Status (+ Reload) und Shares (+ Global Settings) ──
+my $cache    = mn_read_storage_cache();
+my $cache_ts = $cache->{timestamp} || '';
+
+# ── Hamburger-Button + Sidebar (rechts, immer geschlossen beim Laden) ──
+print "<button type='button' class='mn-hamburger' onclick='mnSidebarOpen()' title='Menu'><i class='ti ti-menu-2'></i></button>";
+print "<div class='mn-sidebar-overlay' id='mn-sidebar-overlay' onclick='mnSidebarClose()'></div>";
+print "<div class='mn-sidebar' id='mn-sidebar'>";
+print "<div class='mn-sidebar-head'><span>Actions</span><button class='mn-sidebar-close' onclick='mnSidebarClose()'><i class='ti ti-x'></i></button></div>";
+print "<div class='mn-sidebar-body'>";
+print "<a class='mn-sidebar-item' href='provision_user.cgi?mode=isolated'><i class='ti ti-folder-plus'></i> New share</a>";
+print "<a class='mn-sidebar-item' href='provision_user.cgi?mode=group'><i class='ti ti-user-plus'></i> New user</a>";
+print "<div class='mn-sidebar-sep'></div>";
+print "<a class='mn-sidebar-item' href='reload_samba.cgi'><i class='ti ti-refresh'></i> Reload Samba</a>";
+print "<a class='mn-sidebar-item' href='edit_section.cgi?section=global'><i class='ti ti-settings'></i> Global Settings</a>";
+print "<button type='button' class='mn-sidebar-item' id='testparm-btn' onclick='mnRunTestparm()'><i class='ti ti-file-check' id='testparm-icon'></i> <span id='testparm-result'>Test config</span></button>";
+print "<div class='mn-sidebar-sep'></div>";
+print "<button type='button' class='mn-sidebar-item' id='wake-measure-btn' onclick='mnWakeAndMeasure()'><i class='ti ti-bolt'></i> <span id='wake-measure-status'>Wake &amp; measure disks</span></button>";
+print "<a class='mn-sidebar-item' href='manage_disks.cgi'><i class='ti ti-adjustments'></i> Manage Disks</a>";
+print "</div></div>";
+
+# ── Kacheln: Samba Status + Disk-Kachel(n) ────────────────────────
 print "<div class='mn-tiles'>";
 
 my $status_color = $global_ok ? 'var(--mn-green)' : 'var(--mn-red)';
@@ -65,38 +96,65 @@ my $status_label = $global_ok ? 'Active' : 'Issues';
 print "<div class='mn-tile'>";
 print "<div class='mn-tile-label'><i class='ti ti-server'></i> Samba status</div>";
 print "<div class='mn-tile-val' style='color:$status_color;'>$status_label</div>";
-print "<a class='mn-tile-action' href='reload_samba.cgi'><i class='ti ti-refresh'></i> Reload Samba</a>";
 print "</div>";
 
-print "<div class='mn-tile'>";
-print "<div class='mn-tile-label'><i class='ti ti-folder'></i> Shares</div>";
-print "<div class='mn-tile-val'>$share_count</div>";
-print "<a class='mn-tile-action' href='edit_section.cgi?section=global'><i class='ti ti-settings'></i> Global Settings</a>";
-print "</div>";
+# Disk-Kachel(n): bis 5 Disks je Kachel, aus disks.conf + Cache.
+# Zeigt "Updated: <timestamp>" neben dem Label statt in einer separaten Kachel.
+sub mn_render_disk_tile {
+    my ($disks_slice_ref, $cache_ref, $title, $ts) = @_;
+    print "<div class='mn-tile'>";
+    print "<div class='mn-tile-label' style='display:flex; justify-content:space-between; align-items:baseline;'>";
+    print "<span><i class='ti ti-device-sd-card'></i> $title</span>";
+    my $ts_display = $ts ? $ts : 'never';
+    print "<span class='mn-disk-updated'>Updated: $ts_display</span>";
+    print "</div>";
+    foreach my $d (@$disks_slice_ref) {
+        my $dev   = $d->{dev};
+        my $label = $d->{label};
+        my $info  = $cache_ref->{disks}{$dev};
+        print "<div class='mn-disk-row'>";
+        print "<span class='mn-disk-label' title='$label'>$label</span>";
+        if ($info && defined($info->{total_gb}) && defined($info->{used_gb}) && $info->{total_gb} > 0) {
+            my $pct = int(($info->{used_gb} / $info->{total_gb}) * 100 + 0.5);
+            $pct = 100 if $pct > 100;
+            my $bar_class = $pct >= 90 ? 'mn-progress-crit' : ($pct >= 75 ? 'mn-progress-warn' : '');
+            print "<div class='mn-progress'><div class='mn-progress-bar $bar_class' style='width:${pct}%;'></div></div>";
+            print "<span class='mn-disk-pct'>$pct%</span>";
+        } else {
+            print "<div class='mn-progress'><div class='mn-progress-bar' style='width:0%;'></div></div>";
+            print "<span class='mn-disk-na'>n/a</span>";
+        }
+        my $sleeping = $info ? $info->{sleeping} : undef;
+        if (defined($sleeping) && $sleeping == 1) {
+            print "<span class='mn-disk-sleep' title='Sleeping - values may be outdated'><i class='ti ti-moon'></i></span>";
+        }
+        print "</div>";
+    }
+    print "</div>"; # mn-tile
+}
 
-print "<div class='mn-tile'>";
-print "<div class='mn-tile-label'><i class='ti ti-users'></i> Users</div>";
-print "<div class='mn-tile-val'>$user_count</div>";
-print "<div class='mn-tile-sub'>local system users</div>";
-print "</div>";
+if (@$disks_ref) {
+    my @first5 = @$disks_ref[0 .. (scalar(@$disks_ref) > 5 ? 4 : $#$disks_ref)];
+    mn_render_disk_tile(\@first5, $cache, 'Disks', $cache_ts);
+    if (scalar(@$disks_ref) > 5) {
+        my @rest = @$disks_ref[5 .. $#$disks_ref];
+        mn_render_disk_tile(\@rest, $cache, 'Disks (cont.)', $cache_ts);
+    }
+} else {
+    print "<div class='mn-tile'>";
+    print "<div class='mn-tile-label'><i class='ti ti-device-sd-card'></i> Disks</div>";
+    print "<div class='mn-tile-sub'>No disks configured.</div>";
+    print "</div>";
+}
 
 print "</div>"; # mn-tiles
-
-# ── Quick Actions (direkt unter den Kacheln) ──────────────────────
-print "<div class='mn-section'>";
-print "<div class='mn-section-head'><i class='ti ti-bolt' style='font-size:13px;'></i> Quick actions</div>";
-print "<div style='padding:12px;'><div class='mn-qa-grid'>";
-print "<a class='mn-qa-btn' href='provision_user.cgi?mode=isolated'><div class='mn-qa-icon qa-green'><i class='ti ti-folder-plus'></i></div><div><div class='mn-qa-label'>New share</div><div class='mn-qa-sub'>Create + provision</div></div></a>";
-print "<a class='mn-qa-btn' href='provision_user.cgi?mode=group'><div class='mn-qa-icon qa-blue'><i class='ti ti-user-plus'></i></div><div><div class='mn-qa-label'>New user</div><div class='mn-qa-sub'>OS + Samba</div></div></a>";
-print "<button type='button' class='mn-qa-btn' id='testparm-btn' onclick='mnRunTestparm()'><div class='mn-qa-icon qa-amber' id='testparm-icon'><i class='ti ti-file-check'></i></div><div><div class='mn-qa-label'>Test config</div><div class='mn-qa-sub' id='testparm-result'>Run testparm</div></div></button>";
-print "</div></div></div>";
 
 # ── Shares-Tabelle (volle Breite) ────────────────────────────────
 print "<div class='mn-section'>";
 print "<div class='mn-section-head'><i class='ti ti-folder' style='font-size:13px;'></i> Shares</div>";
 print "<div class='mn-table-wrap'>";
 print "<table class='mn-table' id='shares-table'>";
-print "<tr><th>Share</th><th>Owner</th><th>Permissions</th><th>Actions</th></tr>";
+print "<tr><th>Share</th><th>Owner</th><th>Permissions</th><th>Usage</th><th>Actions</th></tr>";
 
 foreach my $s (@$sections_ref) {
     next if $s->{name} eq 'global';
@@ -124,10 +182,23 @@ foreach my $s (@$sections_ref) {
     my $del_url  = "delete_share.cgi?section=".&WebminCore::urlize($s->{name});
 
     my $perm_url = "edit_permissions.cgi?section=".&WebminCore::urlize($s->{name});
+
+    # Usage aus Cache lesen – nie live gemessen, nie Platten aufwecken.
+    my $usage_raw = $cache->{shares}{$s->{name}};
+    my $usage_str = (defined($usage_raw) && $usage_raw ne 'n/a') ? "$usage_raw GB" : "n/a";
+
+    # Welche konfigurierte Disk liegt dieser Share-Pfad? Fällt auf "Local"
+    # zurück wenn kein disks.conf-Eintrag passt (z.B. System-Rootfs).
+    my $disk_label = ($path ne "—") ? mn_find_disk_for_path($path) : undef;
+    my $disk_badge = defined($disk_label)
+        ? "<span class='mn-disk-badge'><i class='ti ti-device-sd-card'></i> ".&WebminCore::html_escape($disk_label)."</span>"
+        : "<span class='mn-disk-badge mn-disk-badge-local'><i class='ti ti-server-2'></i> Local</span>";
+
     print "<tr data-section='$s->{name}'>";
-    print "<td><span class='mn-share-name'$name_style>$s->{name}</span><span class='mn-share-path'>$path</span></td>";
+    print "<td><span class='mn-share-name'$name_style>$s->{name}</span><span class='mn-share-path'>$path</span> $disk_badge</td>";
     print "<td>$owner</td>";
     print "<td class='mn-perm-cell'>$perm_str $perm_owner</td>";
+    print "<td class='mn-mono'>$usage_str</td>";
     print "<td style='text-align:center; white-space:nowrap;'>";
     print "<a class='mn-icon-btn' href='$edit_url' title='Edit share'><i class='ti ti-edit'></i></a>";
     print "<a class='mn-icon-btn' href='$perm_url' title='Change permissions'><i class='ti ti-folder-cog'></i></a>";

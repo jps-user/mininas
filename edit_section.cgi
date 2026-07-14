@@ -57,9 +57,29 @@ if ($is_global) {
     print "<div class='mn-form-wrap'>";
     print "<div class='mn-form-title'><i class='ti ti-settings' style='margin-right:6px; color:var(--mn-muted);'></i>Share settings<span style='font-size:11px; color:var(--mn-muted); margin-left:10px;'>Changes here may trigger filesystem actions</span></div>";
 
+    # Storage-Location-Dropdown: befüllt das Path-Feld automatisch anhand der
+    # in disks.conf konfigurierten Disks. Bearbeitet den Pfad nur bei Auswahl,
+    # das Path-Feld selbst bleibt frei editierbar (z.B. für Unterordner).
+    my $disks_ref = mn_read_disks_conf();
+    my $current_disk_label = mn_find_disk_for_path($f_path) || '';
     print "<div class='mn-form-row'>";
-    print "<div class='mn-form-col'><label class='mn-label'>Share name</label><input class='mn-input' type='text' name='section' value='".&WebminCore::html_escape($sec_name)."'></div>";
-    print "<div class='mn-form-col' style='flex:2;'><label class='mn-label'>Path</label><input class='mn-input' type='text' name='f_path' value='".&WebminCore::html_escape($f_path)."'></div>";
+    print "<div class='mn-form-col' style='flex:1;'><label class='mn-label'>Storage location</label>";
+    print "<select class='mn-select' id='storage_location_select' onchange='mnApplyStorageLocation(this)'>";
+    print "<option value='' data-mount=''".($current_disk_label eq '' ? " selected" : "").">Local (system disk)</option>";
+    foreach my $d (@$disks_ref) {
+        next unless -d $d->{dev};    # nur Mountpoint-Disks haben einen sinnvollen Pfad-Namensraum
+        my $sel = ($d->{label} eq $current_disk_label) ? " selected" : "";
+        my $mount_esc = &WebminCore::html_escape($d->{dev});
+        my $label_esc = &WebminCore::html_escape($d->{label});
+        print "<option value='$label_esc' data-mount='$mount_esc'$sel>$label_esc</option>";
+    }
+    print "</select>";
+    print "<div class='mn-hint'>Sets the Path field below to &lt;disk&gt;/&lt;share name&gt;. Adjust manually if needed.</div>";
+    print "</div></div>";
+
+    print "<div class='mn-form-row'>";
+    print "<div class='mn-form-col'><label class='mn-label'>Share name</label><input class='mn-input' type='text' name='section' id='share_name_input' value='".&WebminCore::html_escape($sec_name)."'></div>";
+    print "<div class='mn-form-col' style='flex:2;'><label class='mn-label'>Path</label><input class='mn-input' type='text' name='f_path' id='share_path_input' value='".&WebminCore::html_escape($f_path)."'></div>";
     print "<div class='mn-form-col'><label class='mn-label'>If path changed</label><select class='mn-select' name='path_action'><option value='none'>No action</option><option value='mkdir'>Create directory</option><option value='rename'>Move/rename</option></select></div>";
     print "</div>";
 
@@ -91,6 +111,21 @@ print "</div></form>";
 
 # Tab → 4 Spaces
 print "<script>document.getElementById('raw_ta') && document.getElementById('raw_ta').addEventListener('keydown',function(e){if(e.key==='Tab'){e.preventDefault();var s=this.selectionStart,en=this.selectionEnd,v=this.value;this.value=v.substring(0,s)+'    '+v.substring(en);this.selectionStart=this.selectionEnd=s+4;}});</script>";
+
+# Storage-Location-Dropdown: setzt Path = <mount>/<share name> bei Auswahl.
+# Leere Auswahl ("Local") lässt den Pfad unverändert (der Nutzer tippt frei).
+print "<script>
+function mnApplyStorageLocation(sel) {
+  var opt = sel.options[sel.selectedIndex];
+  var mount = opt.getAttribute('data-mount');
+  if (!mount) return;
+  var nameInput = document.getElementById('share_name_input');
+  var pathInput = document.getElementById('share_path_input');
+  if (!pathInput) return;
+  var shareName = (nameInput && nameInput.value.trim()) ? nameInput.value.trim() : 'newshare';
+  pathInput.value = mount.replace(/\\/+\$/, '') + '/' + shareName;
+}
+</script>";
 
 print "</div>";
 &WebminCore::ui_print_footer("index.cgi", "Back to Dashboard");

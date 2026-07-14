@@ -123,6 +123,11 @@ button.mn-qa-btn { font-size: inherit; }
 /* Share-Zeile */
 .mn-share-name { display: block; font-weight: 500; }
 .mn-share-path { display: block; font-size: 12px; color: var(--mn-muted); margin-top: 2px; }
+.mn-disk-badge { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;
+    font-size: 11px; color: var(--mn-accent); background: rgba(88,166,255,0.12);
+    border: 0.5px solid rgba(88,166,255,0.3); border-radius: 4px; padding: 2px 7px; }
+.mn-disk-badge i { font-size: 12px; }
+.mn-disk-badge-local { color: var(--mn-muted); background: var(--mn-surface2); border-color: var(--mn-border2); }
 
 
 /* Icon-Buttons */
@@ -135,6 +140,51 @@ button.mn-qa-btn { font-size: inherit; }
 
 /* Grid Layout */
 .mn-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+
+/* Disk Progress Bars (Etappe 1+2) */
+.mn-disk-row { display: flex; align-items: center; gap: 10px; padding: 7px 0; font-size: 14px; }
+.mn-disk-label { width: 92px; flex-shrink: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mn-progress { flex: 1; height: 8px; border-radius: 4px; background: var(--mn-surface2);
+    border: 0.5px solid var(--mn-border2); overflow: hidden; }
+.mn-progress-bar { height: 100%; border-radius: 4px; background: var(--mn-accent); transition: width 0.3s ease; }
+.mn-progress-bar.mn-progress-warn { background: var(--mn-amber); }
+.mn-progress-bar.mn-progress-crit { background: var(--mn-red); }
+.mn-disk-pct { width: 40px; flex-shrink: 0; text-align: right; font-size: 13px; color: var(--mn-muted); }
+.mn-disk-sleep { flex-shrink: 0; font-size: 15px; color: var(--mn-muted); cursor: default; }
+.mn-disk-na { font-size: 13px; color: var(--mn-muted); font-style: italic; }
+.mn-disk-updated { font-size: 11px; color: var(--mn-muted); font-weight: 400; white-space: nowrap; }
+
+/* Hamburger + Sidebar */
+.mn-hamburger { position: fixed; top: 108px; right: 18px; z-index: 99999;
+    width: 38px; height: 38px; border-radius: var(--mn-radius);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--mn-surface); border: 0.5px solid var(--mn-border2);
+    color: var(--mn-text); cursor: pointer; font-size: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3); pointer-events: auto; }
+.mn-hamburger:hover { border-color: #555; background: var(--mn-surface2); }
+.mn-hamburger.mn-hidden { opacity: 0; pointer-events: none; }
+
+.mn-sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    z-index: 99997; opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+.mn-sidebar-overlay.mn-open { opacity: 1; pointer-events: auto; }
+
+.mn-sidebar { position: fixed; top: 0; right: 0; bottom: 0; width: 300px; max-width: 85vw;
+    background: var(--mn-surface); border-left: 0.5px solid var(--mn-border2);
+    z-index: 99998; transform: translateX(100%); transition: transform 0.25s ease;
+    display: flex; flex-direction: column; }
+.mn-sidebar.mn-open { transform: translateX(0); }
+.mn-sidebar-head { display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 18px; border-bottom: 0.5px solid var(--mn-border); font-size: 15px; font-weight: 500; }
+.mn-sidebar-close { background: none; border: none; color: var(--mn-muted); cursor: pointer; font-size: 20px; }
+.mn-sidebar-close:hover { color: var(--mn-text); }
+.mn-sidebar-body { padding: 10px; overflow-y: auto; flex: 1; }
+.mn-sidebar-item { display: flex; align-items: center; gap: 12px; padding: 12px 12px;
+    border-radius: var(--mn-radius); color: var(--mn-text); text-decoration: none;
+    font-family: var(--mn-font); font-size: 14px; width: 100%; text-align: left;
+    background: none; border: none; cursor: pointer; margin-bottom: 2px; }
+.mn-sidebar-item:hover { background: var(--mn-surface2); }
+.mn-sidebar-item i { font-size: 18px; color: var(--mn-muted); width: 20px; text-align: center; }
+.mn-sidebar-sep { height: 1px; background: var(--mn-border2); margin: 8px 4px; }
 
 /* Activity Log */
 .mn-log-row { display: flex; align-items: flex-start; gap: 10px;
@@ -240,6 +290,9 @@ html[data-night-mode="0"] .mn-del-card:hover { border-color: #94a3b8; background
 
 html[data-night-mode="0"] .mn-icon-btn:hover { border-color: #94a3b8; }
 html[data-night-mode="0"] .mn-icon-btn-del:hover { background: #fce8e6; border-color: var(--mn-red); color: var(--mn-red); }
+
+html[data-night-mode="0"] .mn-sidebar-item:hover { background: var(--mn-surface2); }
+html[data-night-mode="0"] .mn-hamburger:hover { border-color: #94a3b8; background: var(--mn-surface2); }
 
 html[data-night-mode="0"] .mn-card-radio:checked + .mn-card-label { background: #e8f0fe; }
 html[data-night-mode="0"] .mn-del-card:has(input[value=share_only]:checked),

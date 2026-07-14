@@ -43,4 +43,5 @@ my $new_owner = (getpwuid($st[4]))[0] || $st[4];
 my $new_group = (getgrgid($st[5]))[0] || $st[5];
 
 write_mininas_log('SET_PERMS', "Set $path: $own:$grp $mode");
+mn_update_storage_cache();
 json_ok("$new_mode $new_owner:$new_group");

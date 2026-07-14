@@ -36,12 +36,16 @@ if ($is_global) {
     my @ro_users = grep { /\S/ } split(/[\r\n]+/, $in{'f_valid_ro'} || '');
     s/^\s+|\s+$//g for (@rw_users, @ro_users);
 
-    # Pfad-Aktion (Filesystem)
+    # Pfad-Aktion (Filesystem). Greift wenn sich der Pfad geändert hat ODER
+    # das Zielverzeichnis schlicht fehlt (z.B. Pfad wurde in einer früheren
+    # Session gesetzt, das Verzeichnis aber nie angelegt) - sonst würde
+    # "Create directory" bei unverändertem Pfad stillschweigend nichts tun.
     my $path_action = $in{'path_action'} || 'none';
     my ($target)    = grep { $_->{name} eq $old_section } @$sections_ref;
     my $old_path    = $target ? mn_get_share_path($target) : '';
+    my $path_needs_action = $f_path && (($f_path ne $old_path) || !-d $f_path);
 
-    if ($f_path && $f_path ne $old_path && $path_action ne 'none') {
+    if ($path_needs_action && $path_action ne 'none') {
         &WebminCore::error("Invalid path '$f_path'. Only /mnt/... and /srv/... are allowed.")
             unless mn_validate_path($f_path);
 
@@ -100,4 +104,5 @@ unless ($found) {
 mn_write_smb_conf(\@new_lines);
 reload_samba();
 write_mininas_log('SHARE_EDIT', "Edited section [$section] via hybrid editor.");
+mn_update_storage_cache();
 &WebminCore::redirect('index.cgi');
