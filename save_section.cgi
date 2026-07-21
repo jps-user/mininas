@@ -49,23 +49,30 @@ if ($is_global) {
         &WebminCore::error("Invalid path '$f_path'. Only /mnt/... and /srv/... are allowed.")
             unless mn_validate_path($f_path);
 
+        my $owner = @rw_users ? $rw_users[0] : undef;
+
         if ($path_action eq 'mkdir') {
-            my $owner = @rw_users ? $rw_users[0] : undef;
+            # Neuen, leeren Ordner anlegen. Rührt den alten Pfad nicht an -
+            # falls dort noch Daten liegen, bleiben sie unangetastet zurück.
             mn_create_share_dir($f_path, $owner)
                 or &WebminCore::error("Failed to create directory '$f_path' or set ownership.");
         } elsif ($path_action eq 'rename') {
-            if ($old_path && -d $old_path) {
-                system('mv', $old_path, $f_path);
-                &WebminCore::error(
-                    "Failed to move '$old_path' to '$f_path'. " .
-                    "Check permissions or whether target already exists. " .
-                    "smb.conf was NOT changed."
-                ) if $? != 0;
-            } else {
-                my $owner = @rw_users ? $rw_users[0] : undef;
-                mn_create_share_dir($f_path, $owner)
-                    or &WebminCore::error("Failed to create directory '$f_path' or set ownership.");
-            }
+            # Alter Pfad existiert danach nicht mehr (mv) - Daten sind
+            # ausschliesslich am neuen Ort. Fehlschlag statt Vermischen wenn
+            # alter Pfad fehlt oder Ziel schon existiert.
+            my ($ok, $err) = mn_rename_share_dir($old_path, $f_path, $owner);
+            &WebminCore::error("Rename failed: $err smb.conf was NOT changed.") unless $ok;
+        } elsif ($path_action eq 'move') {
+            # Daten werden zum neuen Ort kopiert, danach wird der alte
+            # Ordner komplett entfernt. Ergebnis wie Rename, aber als zwei
+            # separate Schritte statt einem atomaren mv.
+            my ($ok, $err) = mn_move_share_dir($old_path, $f_path, $owner);
+            &WebminCore::error("Move failed: $err smb.conf was NOT changed.") unless $ok;
+        } elsif ($path_action eq 'copy') {
+            # Daten werden kopiert, alter Ordner bleibt komplett unangetastet.
+            # Sicherste Variante - beide Orte existieren danach parallel.
+            my ($ok, $err) = mn_copy_share_dir($old_path, $f_path, $owner);
+            &WebminCore::error("Copy failed: $err smb.conf was NOT changed.") unless $ok;
         }
     }
 

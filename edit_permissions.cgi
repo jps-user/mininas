@@ -105,56 +105,9 @@ print "</div>";
 # Hidden field mit Section für JS
 print "<input type='hidden' id='perm-section-name' value='$sec'>";
 
-print "<script>
-// Inline fromMode - unabhängig von externer Script-Ladereihenfolge
-function mnInitPermissions() {
-  var mode = '$cur_mode';
-  var digits = mode.replace(/^0+/, '');
-  while (digits.length < 3) digits = '0' + digits;
-  var vals = { u: parseInt(digits[0],10), g: parseInt(digits[1],10), o: parseInt(digits[2],10) };
-  ['u','g','o'].forEach(function(who) {
-    var v = vals[who];
-    var r = document.getElementById('perm-'+who+'-r');
-    var w = document.getElementById('perm-'+who+'-w');
-    var x = document.getElementById('perm-'+who+'-x');
-    if (r) r.checked = !!(v & 4);
-    if (w) w.checked = !!(v & 2);
-    if (x) x.checked = !!(v & 1);
-  });
-  // Mode-Feld aktualisieren
-  if (typeof MnPerm !== 'undefined') {
-    MnPerm.section = '$sec';
-    MnPerm.updateModeField();
-  }
-}
-
-// Mehrfach-Fallback: sofort, DOMContentLoaded, und window.onload
-// damit es unabhängig vom Browser-Render-Timing funktioniert
-if (document.readyState === 'complete' || document.readyState === 'interactive') {
-  setTimeout(mnInitPermissions, 0);
-} else {
-  document.addEventListener('DOMContentLoaded', mnInitPermissions);
-}
-window.addEventListener('load', function() {
-  var cb = document.getElementById('perm-u-r');
-  if (cb && !cb.checked && '$cur_mode'.charAt(1) >= '4') {
-    mnInitPermissions();
-  }
-});
-
-function mnApplyAndRedirect() {
-  if (typeof MnPerm !== 'undefined') {
-    MnPerm.section = '$sec';
-    MnPerm.apply(function(newPerm) {
-      // Webmin-konformer Redirect: normaler Link-Click statt location-Manipulation
-      // Verhindert dass Webmin den Frame-Kontext verliert
-      setTimeout(function() {
-        document.getElementById('mn-back-link').click();
-      }, 600);
-    });
-  }
-}
-</script>";
+# Daten für JS als data-Attribute (kein Perl-Wert wird in JS-Code interpoliert -
+# vermeidet Escaping-Fallen und hält Struktur/Logik sauber getrennt)
+print "<div id='mn-perm-init' data-section='".&WebminCore::html_escape($sec)."' data-mode='$cur_mode' style='display:none;'></div>";
 
 print "</div>";
 &WebminCore::ui_print_footer("index.cgi", "Back to Dashboard");

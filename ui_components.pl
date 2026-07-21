@@ -206,6 +206,14 @@ button.mn-qa-btn { font-size: inherit; }
 .mn-input { width: 100%; padding: 8px 10px; background: #2a2a2a; border: 0.5px solid var(--mn-border2);
     color: var(--mn-text); border-radius: var(--mn-radius); font-family: var(--mn-font); font-size: 14px; }
 .mn-input:focus { outline: none; border-color: var(--mn-accent); }
+.mn-path-combo { display: flex; align-items: center; background: #2a2a2a;
+    border: 0.5px solid var(--mn-border2); border-radius: var(--mn-radius);
+    overflow: hidden; }
+.mn-path-combo:focus-within { border-color: var(--mn-accent); }
+.mn-path-prefix { padding: 8px 0 8px 10px; color: var(--mn-muted); font-size: 14px;
+    font-family: var(--mn-mono, monospace); white-space: nowrap; user-select: none; }
+.mn-path-suffix.mn-input { border: none; background: transparent; padding-left: 2px; }
+.mn-path-suffix.mn-input:focus { outline: none; border: none; }
 .mn-select { width: 100%; padding: 8px 10px; background: #2a2a2a; border: 0.5px solid var(--mn-border2);
     color: var(--mn-text); border-radius: var(--mn-radius); font-family: var(--mn-font); font-size: 14px; }
 .mn-textarea { width: 100%; padding: 8px 10px; background: #2a2a2a; border: 0.5px solid var(--mn-border2);

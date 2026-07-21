@@ -1,5 +1,5 @@
 desc=MiniNAS (Samba Admin)
-category=others
+category=servers
 version=1.0
 os_support=debian-linux ubuntu-linux
 longdesc=Minimalistisches Samba-Management für LXC-Container (Block-Editor & User-Workflow).

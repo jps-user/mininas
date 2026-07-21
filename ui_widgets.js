@@ -252,3 +252,101 @@ function mnWakeAndMeasure() {
       if (btn) { btn.disabled = false; }
     });
 }
+
+// ── Share editor: Storage location dropdown ──────────────────────
+// Setzt das Path-Feld auf <mount>/<share name> wenn eine Disk gewählt wird.
+// Jede <option> trägt ihren Basis-Pfad in data-mount (auch "Local" hat einen
+// echten Wert, /srv) - so bleibt die Logik hier einfach und ohne Sonderfall.
+// ── Share editor: Storage location + Path (Präfix fest, Rest editierbar) ──
+// Der Pfad-Präfix (Disk-Mountpoint bzw. /srv) wird durch das Dropdown
+// bestimmt und ist nicht editierbar - verhindert, dass Dropdown-Auswahl und
+// tatsächlicher Pfad auseinanderlaufen. Nur der Teil dahinter (Suffix,
+// i.d.R. der Share-Name) ist frei editierbar. Beide Teile werden bei jeder
+// Änderung zum vollen Pfad zusammengesetzt und ins Hidden-Field f_path
+// geschrieben, das tatsächlich abgeschickt wird.
+function mnApplyStorageLocation(sel) {
+  var opt = sel.options[sel.selectedIndex];
+  var mount = (opt.getAttribute('data-mount') || '/srv').replace(/\/+$/, '');
+  var prefixLabel = document.getElementById('path_prefix_label');
+  if (prefixLabel) prefixLabel.textContent = mount + '/';
+  mnUpdateFullPath();
+}
+
+function mnUpdateFullPath() {
+  var prefixLabel = document.getElementById('path_prefix_label');
+  var suffixInput = document.getElementById('share_path_suffix');
+  var pathInput = document.getElementById('share_path_input');
+  if (!prefixLabel || !suffixInput || !pathInput) return;
+  // Präfix-Label enthält den abschliessenden Slash schon (siehe oben),
+  // daher hier nur direkt aneinanderhängen.
+  pathInput.value = prefixLabel.textContent + suffixInput.value.trim();
+}
+
+// ── Share editor: Tab-Taste im Raw-Parameter-Textfeld -> 4 Spaces ──
+// (statt Fokus-Wechsel zum nächsten Formularelement, wie es Tab normalerweise tut)
+function mnHandleRawTab(e) {
+  if (e.key !== 'Tab') return;
+  e.preventDefault();
+  var ta = e.target;
+  var start = ta.selectionStart, end = ta.selectionEnd, val = ta.value;
+  ta.value = val.substring(0, start) + '    ' + val.substring(end);
+  ta.selectionStart = ta.selectionEnd = start + 4;
+}
+(function() {
+  var ta = document.getElementById('raw_ta');
+  if (ta) ta.addEventListener('keydown', mnHandleRawTab);
+})();
+
+// ── Permissions page: Checkbox-Matrix aus dem aktuellen Mode initialisieren ──
+// Section-Name und Mode kommen aus dem #mn-perm-init data-Element (siehe
+// edit_permissions.cgi) statt in JS-Code interpoliert zu werden - hält CGI
+// (Daten/Struktur) und JS (Verhalten) sauber getrennt.
+function mnInitPermissions() {
+  var initEl = document.getElementById('mn-perm-init');
+  if (!initEl) return;
+  var section = initEl.getAttribute('data-section');
+  var mode = initEl.getAttribute('data-mode') || '0770';
+
+  var digits = mode.replace(/^0+/, '');
+  while (digits.length < 3) digits = '0' + digits;
+  var vals = { u: parseInt(digits[0], 10), g: parseInt(digits[1], 10), o: parseInt(digits[2], 10) };
+  ['u', 'g', 'o'].forEach(function(who) {
+    var v = vals[who];
+    var r = document.getElementById('perm-' + who + '-r');
+    var w = document.getElementById('perm-' + who + '-w');
+    var x = document.getElementById('perm-' + who + '-x');
+    if (r) r.checked = !!(v & 4);
+    if (w) w.checked = !!(v & 2);
+    if (x) x.checked = !!(v & 1);
+  });
+  if (typeof MnPerm !== 'undefined') {
+    MnPerm.section = section;
+    MnPerm.updateModeField();
+  }
+}
+
+// Mehrfach-Fallback: sofort, DOMContentLoaded, und window.onload,
+// damit die Initialisierung unabhängig vom Browser-Render-Timing greift.
+if (document.getElementById('mn-perm-init')) {
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setTimeout(mnInitPermissions, 0);
+  } else {
+    document.addEventListener('DOMContentLoaded', mnInitPermissions);
+  }
+  window.addEventListener('load', mnInitPermissions);
+}
+
+function mnApplyAndRedirect() {
+  var initEl = document.getElementById('mn-perm-init');
+  if (typeof MnPerm !== 'undefined' && initEl) {
+    MnPerm.section = initEl.getAttribute('data-section');
+    MnPerm.apply(function(newPerm) {
+      // Webmin-konformer Redirect: normaler Link-Click statt location-Manipulation,
+      // verhindert dass Webmin den Frame-Kontext verliert.
+      setTimeout(function() {
+        var backLink = document.getElementById('mn-back-link');
+        if (backLink) backLink.click();
+      }, 600);
+    });
+  }
+}

@@ -290,6 +290,65 @@ sub mn_create_share_dir {
     return mn_set_ownership($path, $owner, $group, $mode);
 }
 
+# Benennt ein Share-Verzeichnis um (mv). Der alte Pfad existiert danach nicht
+# mehr - das ist der Kern von "Rename", kein Sonderfall zu behandeln.
+# Schlägt fehl (0) wenn der Zielpfad bereits existiert, um kein versehentliches
+# Vermischen/Überschreiben von Daten zuzulassen.
+# Gibt (1, undef) bei Erfolg, (0, $fehlertext) bei Fehlschlag zurück.
+sub mn_rename_share_dir {
+    my ($old_path, $new_path, $owner, $group, $mode) = @_;
+    return (0, 'Old path does not exist.') unless $old_path && -d $old_path;
+    return (0, "Target path '$new_path' already exists.") if -e $new_path;
+    system('mv', $old_path, $new_path);
+    return (0, "mv failed (exit code $?).") if $? != 0;
+    if ($owner) {
+        return (0, 'Directory moved, but setting ownership failed.')
+            unless mn_set_ownership($new_path, $owner, $group, $mode);
+    }
+    return (1, undef);
+}
+
+# Kopiert die Daten eines Shares an einen neuen Ort und entfernt danach den
+# alten Ordner komplett - Ergebnis wie Rename (Daten nur noch am neuen Ort),
+# aber als zwei separate Schritte (kopieren, dann löschen) statt einem
+# atomaren mv. Praktisch identisch zu mv über Mountpoint-Grenzen (die intern
+# ohnehin kopieren+löschen machen), macht das aber explizit und schrittweise.
+# Gibt (1, undef) bei Erfolg, (0, $fehlertext) bei Fehlschlag zurück.
+sub mn_move_share_dir {
+    my ($old_path, $new_path, $owner, $group, $mode) = @_;
+    my ($ok, $err) = mn_copy_share_dir($old_path, $new_path, $owner, $group, $mode);
+    return (0, $err) unless $ok;
+    system('rm', '-rf', $old_path);
+    return (1, undef);
+}
+
+# Kopiert die Daten eines Shares an einen neuen Ort. Der alte Ordner bleibt
+# komplett unangetastet - sicherste Variante, z.B. um vor einer echten
+# Migration erstmal zu testen, oder als bewusste Sicherheitskopie.
+# Nutzt rsync -a (bewahrt Rechte/Zeitstempel, ist unterbrechbar/fortsetzbar
+# im Fehlerfall) statt cp -a oder mv, gerade bei grossen Backups wie
+# Time-Machine-Shares wichtig.
+# Gibt (1, undef) bei Erfolg, (0, $fehlertext) bei Fehlschlag zurück.
+sub mn_copy_share_dir {
+    my ($old_path, $new_path, $owner, $group, $mode) = @_;
+    return (0, 'Old path does not exist.') unless $old_path && -d $old_path;
+    return (0, "Target path '$new_path' already exists.") if -e $new_path;
+
+    system('mkdir', '-p', $new_path);
+    return (0, 'Failed to create target directory.') if $? != 0;
+
+    system('rsync', '-a', "$old_path/", "$new_path/");
+    if ($? != 0) {
+        return (0, 'rsync failed - old data left untouched at the original path.');
+    }
+
+    if ($owner) {
+        return (0, 'Data copied, but setting ownership on the new path failed.')
+            unless mn_set_ownership($new_path, $owner, $group, $mode);
+    }
+    return (1, undef);
+}
+
 # ── Storage Cache (Etappe 1) ──────────────────────────────────────
 # Zero-Additional-Infrastructure: kein Cron, kein Daemon. Der Cache wird
 # nur nach Filesystem-Aktionen (Platten dann garantiert wach) und explizit
@@ -349,6 +408,41 @@ sub mn_find_disk_for_path {
         }
     }
     return $best_label;
+}
+
+# Zerlegt einen Share-Pfad in (Präfix, Suffix) für das zweigeteilte
+# Path-Formularfeld: Präfix ist die passende konfigurierte Disk (per
+# längstem Mountpoint-Match, wie mn_find_disk_for_path) oder /srv als
+# Fallback; Suffix ist der Rest dahinter (i.d.R. der Share-Name), den der
+# Nutzer frei editieren darf, ohne den Disk-Bezug verlassen zu können.
+# Gibt immer zwei definierte Strings zurück, auch bei leerem/neuem Pfad.
+sub mn_split_path_prefix {
+    my ($path, $disks_ref) = @_;
+    $disks_ref ||= mn_read_disks_conf();
+
+    my $best_prefix;
+    my $best_len = 0;
+    foreach my $d (@$disks_ref) {
+        my $dev = $d->{dev};
+        next if -b $dev;
+        next unless -d $dev;
+        my $prefix = $dev;
+        $prefix =~ s{/+$}{};
+        next unless $path && ($path eq $prefix || substr($path, 0, length($prefix) + 1) eq "$prefix/");
+        if (length($prefix) > $best_len) {
+            $best_len   = length($prefix);
+            $best_prefix = $prefix;
+        }
+    }
+
+    $best_prefix ||= '/srv';
+    my $suffix = $path // '';
+    if (substr($suffix, 0, length($best_prefix) + 1) eq "$best_prefix/") {
+        $suffix = substr($suffix, length($best_prefix) + 1);
+    } elsif ($suffix eq $best_prefix) {
+        $suffix = '';
+    }
+    return ($best_prefix, $suffix);
 }
 
 # Schreibt disks.conf neu aus einer Arrayref von { dev => ..., label => ... }.
