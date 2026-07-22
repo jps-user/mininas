@@ -121,10 +121,10 @@ button.mn-qa-btn { font-size: inherit; }
 .mn-mono { font-family: var(--mn-font); font-size: 13px; color: var(--mn-muted); }
 
 /* Share-Zeile */
-.mn-share-name { display: block; font-weight: 500; }
+.mn-share-name { display: inline-block; font-weight: 500; vertical-align: middle; }
 .mn-share-path { display: block; font-size: 12px; color: var(--mn-muted); margin-top: 2px; }
-.mn-disk-badge { display: inline-flex; align-items: center; gap: 4px; margin-top: 4px;
-    font-size: 11px; color: var(--mn-accent); background: rgba(88,166,255,0.12);
+.mn-disk-badge { display: inline-flex; align-items: center; gap: 4px; vertical-align: middle;
+    margin-left: 6px; font-size: 11px; color: var(--mn-accent); background: rgba(88,166,255,0.12);
     border: 0.5px solid rgba(88,166,255,0.3); border-radius: 4px; padding: 2px 7px; }
 .mn-disk-badge i { font-size: 12px; }
 .mn-disk-badge-local { color: var(--mn-muted); background: var(--mn-surface2); border-color: var(--mn-border2); }

@@ -2,6 +2,7 @@
 package main;
 BEGIN { push(@INC, ".."); };
 use WebminCore;
+use JSON::PP;
 &init_config();
 
 my @users;
@@ -22,11 +23,5 @@ if (open(my $fh, '<', '/etc/group')) {
     close($fh);
 }
 
-sub json_arr {
-    my @items = @_;
-    my $j = join(",", map { s/(["\\])/\\$1/g; "\"$_\"" } @items);
-    return "[$j]";
-}
-
 print "Content-type: application/json\n\n";
-print "{\"users\":".json_arr(@users).",\"groups\":".json_arr(@groups)."}";
+print encode_json({ users => \@users, groups => \@groups });

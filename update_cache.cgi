@@ -3,6 +3,7 @@
 package main;
 BEGIN { push(@INC, "..") }
 use WebminCore;
+use JSON::PP;
 &init_config();
 require 'mininas/mininas-lib.pl';
 
@@ -11,7 +12,6 @@ write_mininas_log('CACHE_UPDATE', 'Manual "Wake & measure" triggered.') if $ok;
 
 my $cache = mn_read_storage_cache();
 my $ts = $cache->{timestamp} || '';
-$ts =~ s/([\\"])/\\$1/g;
 
 print "Content-type: application/json\n\n";
-print "{\"ok\":" . ($ok ? 1 : 0) . ",\"timestamp\":\"$ts\"}";
+print encode_json({ ok => ($ok ? JSON::PP::true : JSON::PP::false), timestamp => $ts });

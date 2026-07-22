@@ -26,9 +26,9 @@ if ($in{'new_password'}) {
 &WebminCore::ui_print_header(undef, "Change Password", "", undef, 0, 0);
 print mn_head();
 print "<div class='mn-wrap'>";
-print "<div class='mn-page-header'><a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a><span class='mn-page-title'>Change password: $u</span></div>";
+print "<div class='mn-page-header'><a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a><span class='mn-page-title'>Change password: ".&WebminCore::html_escape($u)."</span></div>";
 print "<div class='mn-form-wrap' style='max-width:500px;'>";
-print "<div class='mn-form-title'><i class='ti ti-key' style='margin-right:6px; color:var(--mn-muted);'></i>Change Samba password for <b>$u</b></div>";
+print "<div class='mn-form-title'><i class='ti ti-key' style='margin-right:6px; color:var(--mn-muted);'></i>Change Samba password for <b>".&WebminCore::html_escape($u)."</b></div>";
 print "<p class='mn-hint' style='margin-bottom:16px;'>Only the Samba password is changed. The Linux system user password is not affected.</p>";
 print "<form action='change_password.cgi' method='post'>";
 print &WebminCore::ui_hidden("user", $u);

@@ -2,12 +2,13 @@
 package main;
 BEGIN { push(@INC, '..'); }
 use WebminCore;
+use JSON::PP;
 &init_config();
 &ReadParse();
 require 'mininas/mininas-lib.pl';
 
-sub json_ok  { my $m=shift; $m=~s/(["\\])/\\$1/g; print "Content-type: application/json\n\n{\"ok\":1,\"msg\":\"$m\"}"; exit; }
-sub json_err { my $m=shift; $m=~s/(["\\])/\\$1/g; print "Content-type: application/json\n\n{\"ok\":0,\"msg\":\"$m\"}"; exit; }
+sub json_ok  { my $m=shift; print "Content-type: application/json\n\n"; print encode_json({ ok => JSON::PP::true,  msg => $m }); exit; }
+sub json_err { my $m=shift; print "Content-type: application/json\n\n"; print encode_json({ ok => JSON::PP::false, msg => $m }); exit; }
 
 my $sec  = $in{'section'};
 my $own  = $in{'owner'};

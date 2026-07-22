@@ -34,8 +34,17 @@ foreach my $line (split(/\n/, $raw)) {
     if    ($line =~ /^\s*path\s*=\s*(.+)/i)        { $f_path=  $1; $f_path     =~ s/^\s+|\s+$//g; }
     elsif ($line =~ /^\s*writable\s*=\s*(.+)/i)    { $f_writable = lc($1); $f_writable =~ s/^\s+|\s+$//g; }
     elsif ($line =~ /^\s*browsable\s*=\s*(.+)/i)   { $f_browsable= lc($1); $f_browsable=~ s/^\s+|\s+$//g; }
-    elsif ($line =~ /^\s*valid users\s*=\s*(.+)/i) { my $u=$1; $u=~s/^\s+|\s+$//g; push(@f_rw,$u) if $u; }
-    elsif ($line =~ /^\s*read list\s*=\s*(.+)/i)   { my $u=$1; $u=~s/^\s+|\s+$//g; push(@f_ro,$u) if $u; }
+    elsif ($line =~ /^\s*valid users\s*=\s*(.+)/i) {
+        # Samba erlaubt mehrere User in einer Zeile, getrennt durch Leerzeichen
+        # oder Kommas (z.B. "valid users = alice bob, @sambashare"). MiniNAS
+        # selbst schreibt immer eine Zeile pro User, aber von Hand editierte
+        # smb.conf-Dateien können mehrere pro Zeile enthalten - daher hier
+        # splitten statt die ganze Zeile als einen Eintrag zu behandeln.
+        push(@f_rw, grep { /\S/ } split(/[\s,]+/, $1));
+    }
+    elsif ($line =~ /^\s*read list\s*=\s*(.+)/i) {
+        push(@f_ro, grep { /\S/ } split(/[\s,]+/, $1));
+    }
     else  { push(@leftover, $line) if ($line=~/\S/ || @leftover); }
 }
 while (@leftover && $leftover[-1] !~ /\S/) { pop @leftover; }

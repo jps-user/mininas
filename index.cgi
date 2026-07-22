@@ -195,7 +195,7 @@ foreach my $s (@$sections_ref) {
         : "<span class='mn-disk-badge mn-disk-badge-local'><i class='ti ti-server-2'></i> Local</span>";
 
     print "<tr data-section='$s->{name}'>";
-    print "<td><span class='mn-share-name'$name_style>$s->{name}</span><span class='mn-share-path'>$path</span> $disk_badge</td>";
+    print "<td><span class='mn-share-name'$name_style>$s->{name}</span> $disk_badge<span class='mn-share-path'>$path</span></td>";
     print "<td>$owner</td>";
     print "<td class='mn-perm-cell'>$perm_str $perm_owner</td>";
     print "<td class='mn-mono'>$usage_str</td>";

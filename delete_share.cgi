@@ -13,10 +13,10 @@ if (!$sec_name) { &WebminCore::error("Missing section name."); }
 &WebminCore::ui_print_header(undef, "Delete Share", "", undef, 0, 0);
 print mn_head();
 print "<div class='mn-wrap'>";
-print "<div class='mn-page-header'><a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a><span class='mn-page-title'>Delete share: $sec_name</span></div>";
+print "<div class='mn-page-header'><a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a><span class='mn-page-title'>Delete share: ".&WebminCore::html_escape($sec_name)."</span></div>";
 
 print "<div class='mn-form-wrap' style='max-width:600px;'>";
-print "<div class='mn-form-title' style='color:var(--mn-red);'><i class='ti ti-alert-triangle' style='margin-right:6px;'></i>Are you sure you want to delete <b>[$sec_name]</b>?</div>";
+print "<div class='mn-form-title' style='color:var(--mn-red);'><i class='ti ti-alert-triangle' style='margin-right:6px;'></i>Are you sure you want to delete <b>[".&WebminCore::html_escape($sec_name)."]</b>?</div>";
 print "<p style='color:var(--mn-muted); font-size:12px; margin-bottom:16px;'>Choose a deletion mode:</p>";
 
 print "<form action='confirm_delete.cgi' method='post'>";

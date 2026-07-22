@@ -6,6 +6,8 @@ A lightweight Webmin module for Linux file sharing administration.
 
 Built on top of Samba, Linux and Webmin – without replacing any of them.
 
+![MiniNAS dashboard showing Samba status, disk usage, and shares with storage location badges](docs/dashboard-full-overview.png)
+
 ## Features
 - Share management with hybrid editor (structured fields + raw Samba parameters)
 - User provisioning workflow (OS user + Samba user + directory + permissions in one step)
@@ -146,6 +148,22 @@ target directory doesn't exist yet, choose **"Create directory"** when saving.
 
 ## Changelog
 
+### Unreleased
+- Fixed: `valid users` / `read list` lines with multiple space- or comma-separated names (e.g. hand-edited `smb.conf`) were parsed as one combined entry instead of separate users
+- Fixed: several pages (delete/rename/password confirmation screens, home directory management) printed share names, usernames, or paths into HTML without escaping — a section or path containing HTML could have been rendered as markup instead of plain text
+- AJAX endpoints (`testparm.cgi`, `update_cache.cgi`, `set_permissions.cgi`, `get_users_groups.cgi`) now build their JSON responses with `JSON::PP` instead of manual string concatenation
+
+### v0.9.2
+- **Path field on the share editor is now split**: a fixed prefix (the chosen storage location's mount point) plus a freely editable suffix, composed into the actual path on submit. Switching storage location swaps only the prefix and preserves whatever you typed as the suffix — previously the two could drift out of sync
+- **Filesystem actions on path change replaced with three explicit options**, each with unambiguous, tested behavior on both the data and the old directory:
+  - **Rename** — `mv`; old path stops existing
+  - **Move data** — copies to the new path (via `rsync -a`), then deletes the old directory
+  - **Copy data** — copies to the new path, old directory is left untouched
+  - All three refuse to run if the target path already exists, to avoid silently merging or overwriting data
+- **Code cleanup**: all inline `<script>` blocks with Perl-interpolated JavaScript (in `edit_section.cgi` and `edit_permissions.cgi`) moved into `ui_widgets.js` as plain functions; data now passed via `data-*` HTML attributes instead of being spliced into JS source strings. Fixes a broken path-reset regex that resulted from repeated escaping across Perl/JS boundaries
+- Fixed: `module.info` used `category=others`, filing MiniNAS under a generic bucket instead of alongside other server-admin tools; now `category=servers`
+- Added a "Disk Setup for LXC Containers" section to this README, covering UID mapping, Proxmox mount points vs. raw block device passthrough, and common pitfalls
+
 ### v0.9.1
 - **Storage cache system**: disk and share usage tracked in `/var/lib/mininas/storage.cache`, refreshed after filesystem actions and via an explicit "Wake & measure disks" action — never wakes a sleeping disk just to read a value
 - **Disk sleep detection**: `hdparm`-based, with a `/proc/diskstats` fallback for USB bridges that don't support `hdparm -C`
@@ -156,7 +174,6 @@ target directory doesn't exist yet, choose **"Create directory"** when saving.
 - **Dashboard layout**: actions moved into a right-hand slide-out sidebar; disk tiles with usage bars and an "Updated: ..." timestamp replace the old share/user count tiles
 - Fixed: path validation only allowed one path segment under `/mnt` or `/srv`, rejecting nested paths like `/mnt/<disk>/<share>`
 - Fixed: "Create directory" on the share editor silently did nothing when the path field was left unchanged, even if the target directory didn't exist yet
-- Fixed: `module.info` used `category=others`, filing MiniNAS under a generic bucket instead of alongside other server-admin tools; now `category=servers`
 
 ## Philosophy
 See [PHILOSOPHY.md](PHILOSOPHY.md)

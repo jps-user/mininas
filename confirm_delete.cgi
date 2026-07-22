@@ -17,7 +17,7 @@ my $mode     = $in{'delete_mode'};
 print mn_head();
 print "<div class='mn-wrap'>";
 print "<div class='mn-page-header'>";
-print "<span class='mn-page-title'><i class='ti ti-trash' style='color:var(--mn-red); margin-right:8px;'></i>Deleting: $sec_name</span>";
+print "<span class='mn-page-title'><i class='ti ti-trash' style='color:var(--mn-red); margin-right:8px;'></i>Deleting: ".&WebminCore::html_escape($sec_name)."</span>";
 print "</div>";
 print "<div class='mn-section'>";
 print "<div class='mn-section-head'><i class='ti ti-loader-2' style='font-size:13px;'></i> Processing</div>";
