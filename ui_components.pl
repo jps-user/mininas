@@ -328,6 +328,58 @@ html[data-night-mode="0"] .mn-del-card:has(input[value=full_cleanup]:checked) { 
 HTML
 }
 
+# ── Standard-Seitenkopf: Zurück-Link + Titel ────────────────────
+# Ersetzt das bisher 8-10x fast identisch wiederholte
+# "<div class='mn-page-header'>...Dashboard...<span class='mn-page-title'>"
+# Muster. $title wird 1:1 eingesetzt - Escaping bleibt Aufgabe des Aufrufers
+# (wie bisher ueberall im Modul ueblich).
+#
+# %opts:
+#   back_url   - Ziel des Zurück-Links (Default: 'index.cgi')
+#   back_label - Text des Zurück-Links (Default: 'Dashboard')
+#   icon       - Tabler-Icon-Name fuer den Titel, z.B. 'trash' (optional)
+#   icon_color - CSS-Farbe fuer das Titel-Icon, z.B. 'var(--mn-red)' (optional)
+sub mn_page_header {
+    my ($title, %opts) = @_;
+    my $back_url   = $opts{back_url}   || 'index.cgi';
+    my $back_label = $opts{back_label} || 'Dashboard';
+    my $icon_html  = '';
+    if ($opts{icon}) {
+        my $color = $opts{icon_color} ? "color:$opts{icon_color}; " : '';
+        $icon_html = "<i class='ti ti-$opts{icon}' style='${color}margin-right:8px;'></i>";
+    }
+    return "<div class='mn-page-header'><a class='mn-page-back' href='$back_url'>"
+         . "<i class='ti ti-arrow-left'></i> $back_label</a>"
+         . "<span class='mn-page-title'>$icon_html$title</span></div>";
+}
+
+# ── Form-Titel-Zeile: Icon + Text im Formular-Header ────────────
+# Ersetzt das 5-6x wiederholte "<div class='mn-form-title'><i class='ti
+# ti-...' style='margin-right:6px; color:var(--mn-muted);'></i>TEXT</div>"
+# Muster. $text darf bereits eigenes HTML enthalten (z.B. ein <span> fuer
+# monospace Pfad-Anzeige) - wird 1:1 eingesetzt.
+#
+# %opts:
+#   icon       - Tabler-Icon-Name (Default: 'info-circle')
+#   color      - CSS-Farbe fuer Icon+Text, z.B. 'var(--mn-red)' bei
+#                Warnhinweisen (Icon erbt dann die Farbe vom Titel)
+#   icon_color - CSS-Farbe nur fuers Icon, Text bleibt normal gefaerbt
+#                (Default: Icon in mn-muted)
+sub mn_form_title {
+    my ($text, %opts) = @_;
+    my $icon = $opts{icon} || 'info-circle';
+    my ($div_style, $icon_style);
+    if ($opts{color}) {
+        $div_style  = " style='color:$opts{color};'";
+        $icon_style = 'margin-right:6px;';
+    } else {
+        $div_style  = '';
+        $icon_style = 'margin-right:6px; color:' . ($opts{icon_color} || 'var(--mn-muted)') . ';';
+    }
+    return "<div class='mn-form-title'$div_style><i class='ti ti-$icon' "
+         . "style='$icon_style'></i>$text</div>";
+}
+
 # mn_read_log und mn_log_icon sind in mininas-lib.pl definiert
 
 1;

@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.9.3.1
+
+Etappe 4b: wiederkehrende UI-Bausteine zentralisiert (keine funktionalen
+Änderungen, per Test verifiziert byte-identisches HTML).
+
+- Neue `mn_page_header($title, %opts)` in `ui_components.pl`: ersetzt das
+  8-10x wiederholte "Zurück-Link + Seitentitel"-Muster. Unterstützt
+  optionales Titel-Icon (`icon`, `icon_color`).
+- Neue `mn_form_title($text, %opts)`: ersetzt das 6x wiederholte
+  Formular-Titelzeilen-Muster. Unterstützt `icon`, `icon_color` (nur Icon
+  gefärbt) und `color` (ganzer Titel gefärbt, für Lösch-/Warnhinweise).
+- Umgestellt: `change_password.cgi`, `delete_share.cgi`,
+  `delete_user_form.cgi`, `edit_section.cgi` (3 Formular-Titel),
+  `edit_user_shares.cgi`, `manage_disks.cgi`, `manage_home.cgi`,
+  `provision_user.cgi`, `edit_permissions.cgi`.
+- `confirm_delete.cgi` bewusst NICHT umgestellt (einziger Seiten-Header ohne
+  Zurück-Link, eigenes Muster - Funktion dafür verbiegen wäre
+  Über-Engineering für einen einzigen Anwendungsfall).
+- Button- und Formularfeld-Zeilen bewusst NICHT extrahiert: bereits
+  Ein-Zeiler mit stark variierendem Text/Icon/Verhalten pro Aufruf: eine
+  Wrapper-Funktion dafür wäre am Ende so lang wie die aktuelle print-Zeile,
+  nur mit einer Abstraktionsebene mehr - kein echter Gewinn.
+- Nebenbei: `delete_user_form.cgi` nutzte noch die alte inline
+  valid-users/read-list-Regex statt `mn_get_share_users()` (in Etappe 3a.5
+  übersehen) - beim Anfassen der Datei gleich mit dedupliziert.
+
 ## v0.9.3
 
 Etappe 4a: CGI-Boilerplate zentralisiert (keine funktionalen Änderungen).

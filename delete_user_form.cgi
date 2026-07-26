@@ -12,18 +12,19 @@ if (!$u) { &WebminCore::error("No user specified."); }
 &WebminCore::ui_print_header(undef, "Delete User", "", undef, 0, 0);
 print mn_head();
 print "<div class='mn-wrap'>";
-print "<div class='mn-page-header'><a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a><span class='mn-page-title'>Delete user: ".&WebminCore::html_escape($u)."</span></div>";
+print mn_page_header("Delete user: ".&WebminCore::html_escape($u));
 
 my ($lines_ref, $sections_ref) = parse_smb_sections_v2();
 my @affected;
 foreach my $s (@$sections_ref) {
     next if $s->{name} eq "global";
-    push(@affected, $s->{name}) if $s->{raw} =~ /(valid users|read list)\s*=\s*\b\Q$u\E\b/i;
+    my ($rw_ref, $ro_ref) = mn_get_share_users($s);
+    push(@affected, $s->{name}) if grep { $_ eq $u } (@$rw_ref, @$ro_ref);
 }
 my $shares_str = @affected ? join(", ", @affected) : "none";
 
 print "<div class='mn-form-wrap' style='max-width:600px;'>";
-print "<div class='mn-form-title' style='color:var(--mn-red);'><i class='ti ti-alert-triangle' style='margin-right:6px;'></i>Delete user <b>".&WebminCore::html_escape($u)."</b>?</div>";
+print mn_form_title("Delete user <b>".&WebminCore::html_escape($u)."</b>?", icon => 'alert-triangle', color => 'var(--mn-red)');
 print "<p style='color:var(--mn-muted); font-size:12px; margin-bottom:16px;'>Currently assigned to: <b>$shares_str</b></p>";
 
 print "<form action='delete_user_exec.cgi' method='post'>";

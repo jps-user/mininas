@@ -80,7 +80,7 @@ if ($action eq 'relabel') {
 &WebminCore::ui_print_header(undef, "Manage Disks", "", undef, 0, 0);
 print mn_head();
 print "<div class='mn-wrap'>";
-print "<div class='mn-page-header'><a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a><span class='mn-page-title'>Manage Disks</span></div>";
+print mn_page_header("Manage Disks");
 
 if (@errors) {
     print "<div class='mn-form-wrap' style='border-color:var(--mn-red);'>";
@@ -188,7 +188,7 @@ if (open(my $mf, '<', '/proc/mounts')) {
 
 # ── Formular: neue Disk hinzufügen ─────────────────────────────────
 print "<div class='mn-form-wrap'>";
-print "<div class='mn-form-title'><i class='ti ti-plus' style='margin-right:6px; color:var(--mn-muted);'></i>Add disk</div>";
+print mn_form_title("Add disk", icon => 'plus');
 print "<form action='manage_disks.cgi' method='post'>";
 print &WebminCore::ui_hidden('action', 'add');
 

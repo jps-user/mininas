@@ -36,15 +36,12 @@ my $home = mn_get_home_dir($u);
 &WebminCore::ui_print_header(undef, 'Home Directory', '', undef, 0, 0);
 print mn_head();
 print "<div class='mn-wrap'>";
-print "<div class='mn-page-header'>";
-print "<a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a>";
-print "<span class='mn-page-title'>Home Directory: ".&WebminCore::html_escape($u)."</span>";
-print "</div>";
+print mn_page_header("Home Directory: ".&WebminCore::html_escape($u));
 
 print "<div class='mn-form-wrap' style='max-width:600px;'>";
 
 if ($home) {
-    print "<div class='mn-form-title'><i class='ti ti-folder' style='margin-right:6px; color:var(--mn-green);'></i>Home directory exists</div>";
+    print mn_form_title("Home directory exists", icon => 'folder', icon_color => 'var(--mn-green)');
     print "<p class='mn-hint' style='margin-bottom:16px;'>Path: <span style='font-family:monospace; color:var(--mn-text);'>".&WebminCore::html_escape($home)."</span></p>";
     print "<form action='manage_home.cgi' method='post'>";
     print &WebminCore::ui_hidden('user', $u);
@@ -58,7 +55,7 @@ if ($home) {
     print "</div>";
     print "</form>";
 } else {
-    print "<div class='mn-form-title'><i class='ti ti-folder-off' style='margin-right:6px; color:var(--mn-muted);'></i>No home directory</div>";
+    print mn_form_title("No home directory", icon => 'folder-off');
     print "<p class='mn-hint' style='margin-bottom:16px;'>This user currently has no home directory. Most Samba-only service accounts do not need one.</p>";
     print "<form action='manage_home.cgi' method='post'>";
     print &WebminCore::ui_hidden('user', $u);

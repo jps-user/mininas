@@ -20,7 +20,7 @@ if (!$target) {
 &WebminCore::ui_print_header(undef, "Edit Share", "", undef, 0, 0);
 print mn_head();
 print "<div class='mn-wrap'>";
-print "<div class='mn-page-header'><a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a><span class='mn-page-title'>Edit: ".&WebminCore::html_escape($sec_name)."</span></div>";
+print mn_page_header("Edit: ".&WebminCore::html_escape($sec_name));
 
 my $raw = Encode::decode_utf8($target->{raw});
 $raw = join("\n", map { s/^\s+//r } split(/\n/, $raw));
@@ -56,13 +56,13 @@ print &WebminCore::ui_hidden("old_section", $sec_name);
 
 if ($is_global) {
     print "<div class='mn-form-wrap'>";
-    print "<div class='mn-form-title'><i class='ti ti-world' style='margin-right:6px; color:var(--mn-muted);'></i>Global settings – raw editor<span style='font-size:11px; color:var(--mn-muted); margin-left:10px;'>Direct smb.conf edit, no filesystem actions</span></div>";
+    print mn_form_title("Global settings – raw editor<span style='font-size:11px; color:var(--mn-muted); margin-left:10px;'>Direct smb.conf edit, no filesystem actions</span>", icon => 'world');
     print "<textarea class='mn-textarea' name='raw_extra' rows='20'>".&WebminCore::html_escape($raw)."</textarea>";
     print "</div>";
 } else {
     # Block 1: Strukturierte Felder
     print "<div class='mn-form-wrap'>";
-    print "<div class='mn-form-title'><i class='ti ti-settings' style='margin-right:6px; color:var(--mn-muted);'></i>Share settings<span style='font-size:11px; color:var(--mn-muted); margin-left:10px;'>Changes here may trigger filesystem actions</span></div>";
+    print mn_form_title("Share settings<span style='font-size:11px; color:var(--mn-muted); margin-left:10px;'>Changes here may trigger filesystem actions</span>", icon => 'settings');
 
     # Storage-Location-Dropdown wechselt nur das Präfix-Label vor dem Path-
     # Suffix-Feld (siehe unten) - der vom Nutzer editierte Rest (i.d.R. der
@@ -124,7 +124,7 @@ if ($is_global) {
 
     # Block 2: Raw
     print "<div class='mn-form-wrap'>";
-    print "<div class='mn-form-title'><i class='ti ti-code' style='margin-right:6px; color:var(--mn-muted);'></i>Advanced / raw parameters<span style='font-size:11px; color:var(--mn-muted); margin-left:10px;'>smb.conf only – no filesystem actions. Tab = 4 spaces.</span></div>";
+    print mn_form_title("Advanced / raw parameters<span style='font-size:11px; color:var(--mn-muted); margin-left:10px;'>smb.conf only – no filesystem actions. Tab = 4 spaces.</span>", icon => 'code');
     print "<div class='mn-hint' style='margin-bottom:10px;'>Add Samba-specific options: <code>fruit:</code>, <code>vfs objects</code>, <code>comment</code>, <code>create mask</code>, etc.</div>";
     print "<textarea class='mn-textarea' name='raw_extra' rows='8' id='raw_ta' placeholder='vfs objects = catia fruit streams_xattr\nfruit:time machine = yes'>".&WebminCore::html_escape($leftover_text)."</textarea>";
     print "</div>";

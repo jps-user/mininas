@@ -18,10 +18,7 @@ my $preselect = ($in{'mode'} eq 'group') ? 'group' : 'isolated';
 &WebminCore::ui_print_header(undef, 'New User', '', undef, 0, 0);
 print mn_head();
 print "<div class='mn-wrap'>";
-print "<div class='mn-page-header'>";
-print "<a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a>";
-print "<span class='mn-page-title'>New User &amp; Provisioning</span>";
-print "</div>";
+print mn_page_header("New User &amp; Provisioning");
 
 print "<div class='mn-form-wrap'>";
 print "<form action='create_user.cgi' method='post'>";

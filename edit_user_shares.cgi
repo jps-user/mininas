@@ -12,7 +12,7 @@ if (!$u) { &WebminCore::error("No user specified."); }
 &WebminCore::ui_print_header(undef, "Edit Share Permissions", "", undef, 0, 0);
 print mn_head();
 print "<div class='mn-wrap'>";
-print "<div class='mn-page-header'><a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a><span class='mn-page-title'>Share permissions: ".&WebminCore::html_escape($u)."</span></div>";
+print mn_page_header("Share permissions: ".&WebminCore::html_escape($u));
 
 my ($lines_ref, $sections_ref) = parse_smb_sections_v2();
 

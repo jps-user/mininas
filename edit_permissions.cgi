@@ -43,13 +43,10 @@ if (open(my $fh, '<', '/etc/group')) {
 &WebminCore::ui_print_header(undef, "Permissions", "", undef, 0, 0);
 print mn_head();
 print "<div class='mn-wrap'>";
-print "<div class='mn-page-header'>";
-print "<a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a>";
-print "<span class='mn-page-title'>Permissions: ".&WebminCore::html_escape($sec)."</span>";
-print "</div>";
+print mn_page_header("Permissions: ".&WebminCore::html_escape($sec));
 
 print "<div class='mn-form-wrap' style='max-width:600px;'>";
-print "<div class='mn-form-title'><i class='ti ti-shield' style='margin-right:6px; color:var(--mn-muted);'></i>Directory: <span style='font-family:monospace; color:var(--mn-muted);'>".&WebminCore::html_escape($path)."</span></div>";
+print mn_form_title("Directory: <span style='font-family:monospace; color:var(--mn-muted);'>".&WebminCore::html_escape($path)."</span>", icon => 'shield');
 
 # Owner + Group + Mode Zeile
 print "<div class='mn-form-row'>";
