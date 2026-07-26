@@ -2,8 +2,11 @@
 # edit_permissions.cgi - Eigene Seite für Owner, Group und Mode eines Shares
 
 package main;
+use strict;
+use warnings;
 BEGIN { push(@INC, ".."); };
 use WebminCore;
+$main::default_charset = 'utf-8';
 &init_config();
 &ReadParse();
 require 'mininas/mininas-lib.pl';
@@ -11,13 +14,13 @@ require 'mininas/ui_components.pl';
 
 my $sec = $in{'section'};
 if (!$sec) { &WebminCore::error("No section specified."); }
+if (!mn_validate_section_name($sec)) { &WebminCore::error("Invalid section name."); }
 
 my ($lines_ref, $sections_ref) = parse_smb_sections_v2();
 my ($target) = grep { $_->{name} eq $sec } @$sections_ref;
-if (!$target) { &WebminCore::error("Section '$sec' not found."); }
+if (!$target) { &WebminCore::error("Section '".&WebminCore::html_escape($sec)."' not found."); }
 
-my ($path) = ($target->{raw} =~ /path\s*=\s*([^\n]+)/i);
-$path =~ s/^\s+|\s+$//g if $path;
+my $path = mn_get_share_path($target);
 
 # Aktuelle Permissions lesen
 my ($cur_mode, $cur_owner, $cur_group) = ('0770', '', '');
@@ -46,11 +49,11 @@ print mn_head();
 print "<div class='mn-wrap'>";
 print "<div class='mn-page-header'>";
 print "<a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a>";
-print "<span class='mn-page-title'>Permissions: $sec</span>";
+print "<span class='mn-page-title'>Permissions: ".&WebminCore::html_escape($sec)."</span>";
 print "</div>";
 
 print "<div class='mn-form-wrap' style='max-width:600px;'>";
-print "<div class='mn-form-title'><i class='ti ti-shield' style='margin-right:6px; color:var(--mn-muted);'></i>Directory: <span style='font-family:monospace; color:var(--mn-muted);'>$path</span></div>";
+print "<div class='mn-form-title'><i class='ti ti-shield' style='margin-right:6px; color:var(--mn-muted);'></i>Directory: <span style='font-family:monospace; color:var(--mn-muted);'>".&WebminCore::html_escape($path)."</span></div>";
 
 # Owner + Group + Mode Zeile
 print "<div class='mn-form-row'>";
@@ -103,11 +106,20 @@ print "</div>";
 print "</div>";
 
 # Hidden field mit Section für JS
-print "<input type='hidden' id='perm-section-name' value='$sec'>";
+print "<input type='hidden' id='perm-section-name' value='".&WebminCore::html_escape($sec)."'>";
 
 # Daten für JS als data-Attribute (kein Perl-Wert wird in JS-Code interpoliert -
 # vermeidet Escaping-Fallen und hält Struktur/Logik sauber getrennt)
 print "<div id='mn-perm-init' data-section='".&WebminCore::html_escape($sec)."' data-mode='$cur_mode' style='display:none;'></div>";
+
+# Direkter Inline-Aufruf statt nur auf DOMContentLoaded/load zu warten:
+# Webmins Authentic Theme kann Seiten per AJAX/Soft-Navigation nachladen,
+# wobei diese Browser-Events nicht zwingend erneut feuern (nur ein
+# vollständiger Reload triggert sie sicher). Da dieser <script>-Block Teil
+# des bei JEDEM Aufruf frisch generierten Seiten-HTML ist, läuft er
+# zuverlässig genau dann, wenn die vorangehenden Elemente (Checkboxen,
+# #mn-perm-init) bereits im DOM stehen - unabhängig vom Navigationsweg.
+print "<script>if (typeof mnInitPermissions === 'function') { mnInitPermissions(); }</script>";
 
 print "</div>";
 &WebminCore::ui_print_footer("index.cgi", "Back to Dashboard");

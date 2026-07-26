@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 package main;
+use strict;
+use warnings;
 BEGIN { push(@INC, '..'); }
 use WebminCore;
 &init_config();
@@ -15,6 +17,9 @@ my $mode     = $in{'creation_mode'};
 
 &WebminCore::error('Invalid username format. Use lowercase letters, digits, - or _.')
     unless mn_validate_username($username, 0);
+
+&WebminCore::error('Password must be at least 6 characters.')
+    if length($password) < 6;
 
 # 1. OS-User anlegen
 mn_create_os_user($username, $in{'create_home'} ? 1 : 0)
@@ -64,12 +69,29 @@ if ($mode eq 'isolated') {
     my $perm   = $in{'group_perms'};
     my $key    = ($perm eq 'ro') ? 'read list' : 'valid users';
 
+    my ($target_section) = grep { $_->{name} eq $target } @$sections_ref;
+    &WebminCore::error("Share '".&WebminCore::html_escape($target)."' not found.") unless $target_section;
+
+    my ($rw_ref, $ro_ref) = mn_get_share_users($target_section);
+    my %rw_seen; my @rw = grep { !$rw_seen{$_}++ } @$rw_ref;
+    my %ro_seen; my @ro = grep { !$ro_seen{$_}++ } @$ro_ref;
+    if ($perm eq 'ro') { push(@ro, $username) unless grep { $_ eq $username } @ro; }
+    else                { push(@rw, $username) unless grep { $_ eq $username } @rw; }
+
     my @new_lines;
     foreach my $s (@$sections_ref) {
         push(@new_lines, "[$s->{name}]\n");
         if ($s->{name} eq $target) {
-            push(@new_lines, $s->{raw});
-            push(@new_lines, "    $key = $username\n");
+            # Bestehende valid-users/read-list Zeilen entfernen, dann genau
+            # eine konsolidierte Zeile je Schluessel neu schreiben - sonst
+            # gewinnt bei Samba nur die zuletzt geschriebene Zeile und alle
+            # bisherigen Mitglieder verlieren stillschweigend den Zugriff.
+            foreach my $line (split(/\n/, $s->{raw})) {
+                next if $line =~ /^\s*(valid users|read list)\s*=/i;
+                push(@new_lines, "$line\n") if $line =~ /\S/;
+            }
+            push(@new_lines, "    valid users = " . join(' ', @rw) . "\n") if @rw;
+            push(@new_lines, "    read list = "   . join(' ', @ro) . "\n") if @ro;
         } else {
             push(@new_lines, $s->{raw});
         }

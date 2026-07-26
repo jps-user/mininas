@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 package main;
+use strict;
+use warnings;
 BEGIN { push(@INC, ".."); };
 use WebminCore;
 use Encode qw(decode_utf8);
@@ -22,7 +24,7 @@ if (!$target) {
 &WebminCore::ui_print_header(undef, "Edit Share", "", undef, 0, 0);
 print mn_head();
 print "<div class='mn-wrap'>";
-print "<div class='mn-page-header'><a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a><span class='mn-page-title'>Edit: $sec_name</span></div>";
+print "<div class='mn-page-header'><a class='mn-page-back' href='index.cgi'><i class='ti ti-arrow-left'></i> Dashboard</a><span class='mn-page-title'>Edit: ".&WebminCore::html_escape($sec_name)."</span></div>";
 
 my $raw = Encode::decode_utf8($target->{raw});
 $raw = join("\n", map { s/^\s+//r } split(/\n/, $raw));

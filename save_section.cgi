@@ -1,7 +1,10 @@
 #!/usr/bin/perl
 package main;
+use strict;
+use warnings;
 BEGIN { push(@INC, '..'); }
 use WebminCore;
+$main::default_charset = 'utf-8';
 &init_config();
 &ReadParse();
 require 'mininas/mininas-lib.pl';
@@ -11,6 +14,8 @@ require 'mininas/mininas-lib.pl';
 my $section     = $in{'section'};
 my $old_section = $in{'old_section'} || $section;
 &WebminCore::error('No section name provided.') unless $section;
+&WebminCore::error("Invalid share name '".&WebminCore::html_escape($section)."'. Only letters, digits, spaces, '.', '_', '-' are allowed (max. 64 characters).")
+    unless $section eq 'global' || mn_validate_section_name($section);
 
 my ($lines_ref, $sections_ref) = parse_smb_sections_v2();
 my $is_global = ($section eq 'global');
@@ -36,6 +41,14 @@ if ($is_global) {
     my @ro_users = grep { /\S/ } split(/[\r\n]+/, $in{'f_valid_ro'} || '');
     s/^\s+|\s+$//g for (@rw_users, @ro_users);
 
+    # Jede Zeile muss ein syntaktisch gueltiger Username sein (gleiche Regel
+    # wie in create_user.cgi) - verhindert smb.conf-Injection und XSS ueber
+    # die "valid users"/"read list" Freitextfelder.
+    foreach my $u (@rw_users, @ro_users) {
+        &WebminCore::error("Invalid username '".&WebminCore::html_escape($u)."' in valid users / read list.")
+            unless mn_validate_username($u, 1);
+    }
+
     # Pfad-Aktion (Filesystem). Greift wenn sich der Pfad geändert hat ODER
     # das Zielverzeichnis schlicht fehlt (z.B. Pfad wurde in einer früheren
     # Session gesetzt, das Verzeichnis aber nie angelegt) - sonst würde
@@ -45,10 +58,14 @@ if ($is_global) {
     my $old_path    = $target ? mn_get_share_path($target) : '';
     my $path_needs_action = $f_path && (($f_path ne $old_path) || !-d $f_path);
 
-    if ($path_needs_action && $path_action ne 'none') {
-        &WebminCore::error("Invalid path '$f_path'. Only /mnt/... and /srv/... are allowed.")
-            unless mn_validate_path($f_path);
+    # Validierung greift IMMER wenn ein Pfad gesetzt ist, unabhängig von
+    # $path_action - sonst liesse sich mit path_action=none die Whitelist
+    # umgehen und ein beliebiger Pfad (z.B. ausserhalb /mnt, /srv) direkt in
+    # die smb.conf schreiben, ohne dass je eine Filesystem-Aktion läuft.
+    &WebminCore::error("Invalid path '".&WebminCore::html_escape($f_path)."'. Only /mnt/... and /srv/... are allowed.")
+        if $f_path && !mn_validate_path($f_path);
 
+    if ($path_needs_action && $path_action ne 'none') {
         my $owner = @rw_users ? $rw_users[0] : undef;
 
         if ($path_action eq 'mkdir') {
@@ -79,8 +96,12 @@ if ($is_global) {
     $new_block .= "    path = $f_path\n"        if $f_path;
     $new_block .= "    writable = $f_writable\n";
     $new_block .= "    browsable = $f_browsable\n";
-    $new_block .= "    valid users = $_\n" for @rw_users;
-    $new_block .= "    read list = $_\n"   for @ro_users;
+    # Genau EINE Zeile pro Schlüssel: Samba übernimmt bei mehrfach
+    # vorkommenden Parametern innerhalb derselben Section nur die letzte
+    # Instanz - mehrere "valid users ="-Zeilen würden alle bis auf die
+    # letzte gelistete Person stillschweigend vom Zugriff ausschliessen.
+    $new_block .= "    valid users = " . join(' ', @rw_users) . "\n" if @rw_users;
+    $new_block .= "    read list = "   . join(' ', @ro_users) . "\n" if @ro_users;
 
     if ($raw_extra =~ /\S/) {
         foreach my $rl (split(/\n/, $raw_extra)) {

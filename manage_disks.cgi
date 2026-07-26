@@ -3,8 +3,11 @@
 # Labels vergeben. Zeigt LXC-Hinweis, da in Containern meist nur Mountpoints (kein
 # rohes Blockgerät) sichtbar sind - siehe mn_is_lxc().
 package main;
+use strict;
+use warnings;
 BEGIN { push(@INC, ".."); };
 use WebminCore;
+$main::default_charset = 'utf-8';
 &init_config();
 &ReadParse();
 require 'mininas/mininas-lib.pl';
@@ -24,6 +27,8 @@ if ($action eq 'add') {
         push @errors, 'Please select or enter a device / mount path.';
     } elsif (!(-b $path || -d $path)) {
         push @errors, "Path '$path' is neither a block device nor an existing directory.";
+    } elsif (mn_is_dangerous_disk_path($path)) {
+        push @errors, "Refusing to add '$path' as a disk - this looks like a system directory, not a data mountpoint.";
     } elsif ($label !~ /^[a-zA-Z0-9_ -]{1,32}$/) {
         push @errors, 'Label must be 1-32 characters (letters, numbers, space, - and _ only).';
     } else {

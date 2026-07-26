@@ -1,7 +1,10 @@
 #!/usr/bin/perl
 package main;
+use strict;
+use warnings;
 BEGIN { push(@INC, '..'); }
 use WebminCore;
+$main::default_charset = 'utf-8';
 &init_config();
 &ReadParse();
 require 'mininas/mininas-lib.pl';
@@ -32,7 +35,11 @@ my ($target) = grep { $_->{name} eq $sec_name } @$sections_ref;
 if ($target && $mode eq 'full_cleanup') {
     my $path = mn_get_share_path($target);
 
-    if ($path && mn_validate_path($path) && -d $path) {
+    if ($path && mn_path_is_disk_root($path)) {
+        step_err("Refusing to delete '$path': this is the root of a configured disk, not a share subfolder. Remove the share's data manually if that's really intended.");
+    } elsif ($path && -l $path) {
+        step_err("Refusing to delete '$path': it is a symlink, not a real directory.");
+    } elsif ($path && mn_validate_path($path) && -d $path) {
         system('rm', '-rf', $path);
         $? == 0 ? step_ok("Directory removed: $path")
                 : step_err("Could not remove directory: $path");
@@ -40,11 +47,9 @@ if ($target && $mode eq 'full_cleanup') {
 
     # Alle User dieser Sektion sammeln und löschen
     my %users_to_wipe;
-    while ($target->{raw} =~ /^\s*(?:valid users|read list)\s*=\s*([^\n]+)/gim) {
-        foreach my $u (split(/[\s,]+/, $1)) {
-            $u =~ s/^\s+|\s+$//g;
-            $users_to_wipe{$u} = 1 if ($u && $u !~ /^@/);
-        }
+    my ($rw_ref, $ro_ref) = mn_get_share_users($target);
+    foreach my $u (@$rw_ref, @$ro_ref) {
+        $users_to_wipe{$u} = 1 if $u !~ /^@/;
     }
     foreach my $u (sort keys %users_to_wipe) {
         next unless mn_validate_username($u, 0);

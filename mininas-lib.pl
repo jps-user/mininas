@@ -51,6 +51,24 @@ sub mn_get_share_path {
     return $path || '';
 }
 
+# Gibt (\@rw_users, \@ro_users) für eine Sektion zurück, gesammelt aus allen
+# "valid users"/"read list" Zeilen im raw-Block (mehrere Zeilen und mehrere
+# durch Leerzeichen/Komma getrennte User pro Zeile werden unterstützt, wie
+# bei von Hand editierten smb.conf-Dateien üblich). Zentrale Stelle statt
+# der gleichen Regex an mehreren Aufrufstellen.
+sub mn_get_share_users {
+    my ($section) = @_;
+    my (@rw, @ro);
+    return (\@rw, \@ro) unless $section && $section->{raw};
+    while ($section->{raw} =~ /^\s*valid users\s*=\s*([^\n]+)/gim) {
+        push(@rw, grep { /\S/ } split(/[\s,]+/, $1));
+    }
+    while ($section->{raw} =~ /^\s*read list\s*=\s*([^\n]+)/gim) {
+        push(@ro, grep { /\S/ } split(/[\s,]+/, $1));
+    }
+    return (\@rw, \@ro);
+}
+
 # Schreibt smb.conf atomar: lock → backup → tmp → rename → testparm → unlock
 # Bei testparm-Fehler: Rollback auf Backup, unlock, error().
 # $new_lines_ref: Arrayref mit den zu schreibenden Zeilen
@@ -62,6 +80,10 @@ sub mn_write_smb_conf {
 
     &WebminCore::lock_file($smb_conf);
     system('cp', $smb_conf, $bak_conf);
+    if ($? != 0) {
+        &WebminCore::unlock_file($smb_conf);
+        &WebminCore::error("Failed to create backup copy '$bak_conf' before writing smb.conf - aborting without changes (disk full? permissions?).");
+    }
 
     if (open(my $wfh, '>', $tmp_conf)) {
         print $wfh join('', @$new_lines_ref);
@@ -98,6 +120,19 @@ sub mn_validate_username {
         return ($u =~ /^[a-zA-Z_][a-zA-Z0-9_-]*$/) ? 1 : 0;
     }
     return ($u =~ /^[a-z_][a-z0-9_-]*$/) ? 1 : 0;
+}
+
+# Prüft ob ein Samba-Share-/Sektionsname syntaktisch gültig ist.
+# Verboten: "]", Steuerzeichen, Zeilenumbrüche (smb.conf-Injection) sowie
+# alles ausserhalb eines konservativen Zeichensatzes (verhindert zugleich
+# gespeichertes XSS, da der Name unescaped u.a. im Dashboard landet).
+# "global" ist ein reservierter Sektionsname und wird hier bewusst nicht
+# geprüft - er wird von den Aufrufern gesondert behandelt.
+sub mn_validate_section_name {
+    my ($name) = @_;
+    return 0 unless defined $name && length($name);
+    return 0 if length($name) > 64;
+    return ($name =~ /^[a-zA-Z0-9_.\- ]+$/) ? 1 : 0;
 }
 
 # Prüft ob ein Pfad in der Sicherheits-Whitelist liegt.
@@ -233,6 +268,7 @@ sub mn_remove_home_dir {
     my $home = mn_get_home_dir($username);
     return 1 unless $home;                      # kein Home vorhanden - nichts zu tun
     return 0 unless $home =~ m{^/home/[a-zA-Z0-9_.\-]+$};   # Sicherheits-Whitelist
+    return 0 if -l $home;    # Symlink statt echtem Verzeichnis: nicht anfassen
 
     system('rm', '-rf', $home);
     return 0 if $? != 0;
@@ -272,10 +308,11 @@ sub mn_set_ownership {
     return 0 unless $path && $owner;
     $group ||= 'sambashare';
     $mode  ||= '0770';
-    system('chown', "$owner:$group", $path);
-    return 0 if $? != 0;
-    system('chmod', $mode, $path);
-    return 0 if $? != 0;
+    my $uid = getpwnam($owner);
+    my $gid = getgrnam($group);
+    return 0 unless defined $uid && defined $gid;
+    chown($uid, $gid, $path) or return 0;
+    chmod(oct($mode), $path) or return 0;
     return 1;
 }
 
@@ -298,6 +335,7 @@ sub mn_create_share_dir {
 sub mn_rename_share_dir {
     my ($old_path, $new_path, $owner, $group, $mode) = @_;
     return (0, 'Old path does not exist.') unless $old_path && -d $old_path;
+    return (0, 'Old path is a symlink, refusing to touch it.') if -l $old_path;
     return (0, "Target path '$new_path' already exists.") if -e $new_path;
     system('mv', $old_path, $new_path);
     return (0, "mv failed (exit code $?).") if $? != 0;
@@ -332,6 +370,7 @@ sub mn_move_share_dir {
 sub mn_copy_share_dir {
     my ($old_path, $new_path, $owner, $group, $mode) = @_;
     return (0, 'Old path does not exist.') unless $old_path && -d $old_path;
+    return (0, 'Old path is a symlink, refusing to touch it.') if -l $old_path;
     return (0, "Target path '$new_path' already exists.") if -e $new_path;
 
     system('mkdir', '-p', $new_path);
@@ -408,6 +447,41 @@ sub mn_find_disk_for_path {
         }
     }
     return $best_label;
+}
+
+# Prüft ob ein Pfad exakt der Mountpoint-Wurzel einer konfigurierten Disk
+# entspricht (z.B. weil ein Share direkt auf die Disk-Wurzel statt auf einen
+# Unterordner zeigt). Wird vor destruktiven "rm -rf"-Aktionen genutzt, damit
+# "Full cleanup" nie versehentlich eine komplette Zusatz-Disk leert.
+# Nur Mountpoint-Einträge sind relevant (Blockgerät-Einträge wie /dev/sdX
+# können nicht mit einem Share-Pfad kollidieren).
+sub mn_path_is_disk_root {
+    my ($path) = @_;
+    return 0 unless $path;
+    my $disks_ref = mn_read_disks_conf();
+    foreach my $d (@$disks_ref) {
+        my $dev = $d->{dev};
+        next if -b $dev;
+        my $prefix = $dev;
+        $prefix =~ s{/+$}{};
+        return 1 if $path eq $prefix;
+    }
+    return 0;
+}
+
+# Grobe Sicherheitsbremse gegen offensichtlich falsche Eingaben beim
+# Hinzufügen einer Disk (z.B. Tippfehler, versehentlich Systempfad statt
+# Mountpoint gewählt). Kein Ersatz für mn_validate_path - Disks dürfen
+# ausserhalb von /mnt/ /srv liegen (z.B. eigene Mountpoints), aber
+# eindeutige Systemverzeichnisse sind nie ein sinnvoller Disk-Mountpoint.
+sub mn_is_dangerous_disk_path {
+    my ($path) = @_;
+    return 0 unless $path;
+    my @denylist = qw(/ /etc /root /proc /sys /boot /bin /sbin /usr /lib /lib64 /dev /run /var);
+    foreach my $d (@denylist) {
+        return 1 if $path eq $d;
+    }
+    return 0;
 }
 
 # Zerlegt einen Share-Pfad in (Präfix, Suffix) für das zweigeteilte
@@ -525,16 +599,17 @@ sub mn_get_disk_usage {
     return (undef, undef);
 }
 
-# Liefert den Füllstand eines Share-Pfads in GB via du -sh.
-# Gibt 'n/a' zurück wenn der Pfad fehlt oder du fehlschlägt.
+# Liefert den Füllstand eines Share-Pfads als lesbaren String (z.B. "4.0K",
+# "128M", "2.3G") via du -sh. Gibt 'n/a' zurück wenn der Pfad fehlt oder du
+# fehlschlägt. WICHTIG: nicht -BG verwenden - das rundet jeden Wert auf
+# volle Gigabyte AUF (nie ab), wodurch leere/kleine Shares fälschlich immer
+# als "1 GB" erschienen (Ursprungs-Bug).
 sub mn_get_share_usage {
     my ($path) = @_;
     return 'n/a' unless $path && -d $path;
-    my $out = `du -sBG \Q$path\E 2>/dev/null | awk '{print \$1}'`;
+    my $out = `du -sh \Q$path\E 2>/dev/null | awk '{print \$1}'`;
     chomp $out;
-    return 'n/a' unless $out;
-    $out =~ s/G$//;
-    return ($out =~ /^\d+$/) ? $out : 'n/a';
+    return ($out =~ /^[\d.]+[KMGT]?$/) ? $out : 'n/a';
 }
 
 # Schreibt den kompletten Storage-Cache neu.
@@ -647,6 +722,10 @@ sub mn_read_storage_cache {
 sub write_mininas_log {
     my ($action, $msg) = @_;
     my $logfile = '/var/log/mininas.log';
+    # Newlines aus Action/Message entfernen - verhindert dass Nutzereingaben
+    # (Pfade, Namen) gefälschte zusätzliche Log-Zeilen einschleusen können.
+    $action =~ s/[\r\n]+/ /g if defined $action;
+    $msg    =~ s/[\r\n]+/ /g if defined $msg;
     if (open(my $fh, '>>', $logfile)) {
         my $ts = scalar localtime();
         print $fh "[$ts] [$action] $msg\n";

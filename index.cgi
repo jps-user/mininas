@@ -1,7 +1,10 @@
 #!/usr/bin/perl
 package main;
+use strict;
+use warnings;
 BEGIN { push(@INC, ".."); };
 use WebminCore;
+$main::default_charset = 'utf-8';
 &init_config();
 require 'mininas/mininas-lib.pl';
 require 'mininas/ui_components.pl';
@@ -158,12 +161,11 @@ print "<tr><th>Share</th><th>Owner</th><th>Permissions</th><th>Usage</th><th>Act
 
 foreach my $s (@$sections_ref) {
     next if $s->{name} eq 'global';
-    my ($path) = ($s->{raw} =~ /path\s*=\s*([^\n]+)/i);
-    $path =~ s/^\s+|\s+$//g if $path; $path ||= "—";
+    my $path = mn_get_share_path($s);
+    $path ||= "—";
     my $owner = "—";
-    if ($s->{raw} =~ /valid users\s*=\s*([^\n]+)/i) {
-        my @t = split(/[\s,]+/, $1); $owner = shift(@t)||"—"; $owner =~ s/^\s+|\s+$//g;
-    }
+    my ($rw_ref, undef) = mn_get_share_users($s);
+    if (@$rw_ref) { $owner = $rw_ref->[0]; }
     my $is_tm = ($s->{raw} =~ /fruit:time machine\s*=\s*yes/i);
     my ($perm_str, $perm_owner) = ("—","—");
     if ($path ne "—" && -d $path) {
@@ -185,7 +187,7 @@ foreach my $s (@$sections_ref) {
 
     # Usage aus Cache lesen – nie live gemessen, nie Platten aufwecken.
     my $usage_raw = $cache->{shares}{$s->{name}};
-    my $usage_str = (defined($usage_raw) && $usage_raw ne 'n/a') ? "$usage_raw GB" : "n/a";
+    my $usage_str = (defined($usage_raw) && $usage_raw ne 'n/a') ? $usage_raw : "n/a";
 
     # Welche konfigurierte Disk liegt dieser Share-Pfad? Fällt auf "Local"
     # zurück wenn kein disks.conf-Eintrag passt (z.B. System-Rootfs).
@@ -265,12 +267,9 @@ print "<table class='mn-table'>";
 print "<tr><th>Username</th><th>UID</th><th>Assigned shares</th><th>Actions</th></tr>";
 
 foreach my $s (@$sections_ref) {
-    my @finds = ($s->{raw} =~ /(?:valid users|read list)\s*=\s*([^\n]+)/gi);
-    foreach my $line (@finds) {
-        foreach my $u (split(/[\s,]+/, $line)) {
-            $u =~ s/^\s+|\s+$//g;
-            if ($u && $u !~ /^@/) { $users{$u} ||= "Ghost"; }
-        }
+    my ($rw_ref, $ro_ref) = mn_get_share_users($s);
+    foreach my $u (@$rw_ref, @$ro_ref) {
+        $users{$u} ||= "Ghost" if $u !~ /^@/;
     }
 }
 
@@ -278,7 +277,8 @@ foreach my $u (sort keys %users) {
     my $uid = $users{$u};
     my @assigned;
     foreach my $s (@$sections_ref) {
-        push(@assigned, $s->{name}) if $s->{raw} =~ /(?:valid users|read list)\s*=\s*[^\n]*\b\Q$u\E\b/i;
+        my ($rw_ref, $ro_ref) = mn_get_share_users($s);
+        push(@assigned, $s->{name}) if grep { $_ eq $u } (@$rw_ref, @$ro_ref);
     }
     my $shares_str = @assigned ? join(", ", @assigned) : "<span style='color:var(--mn-muted); font-style:italic;'>None</span>";
     print "<tr>";

@@ -1,6 +1,8 @@
 #!/usr/bin/perl
 # testparm.cgi - Prüft smb.conf Syntax und gibt JSON zurück (für AJAX-Aufruf vom Dashboard)
 package main;
+use strict;
+use warnings;
 BEGIN { push(@INC, "..") }
 use WebminCore;
 use JSON::PP;

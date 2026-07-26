@@ -83,15 +83,21 @@ var MnPerm = {
         var gSel = document.getElementById('perm-group');
         if (!uSel || !gSel) return;
 
-        uSel.innerHTML = data.users.map(function(u) {
-          var sel = (u === currentOwner) ? ' selected' : '';
-          return '<option' + sel + '>' + u + '</option>';
-        }).join('');
-
-        gSel.innerHTML = data.groups.map(function(g) {
-          var sel = (g === currentGroup) ? ' selected' : '';
-          return '<option' + sel + '>' + g + '</option>';
-        }).join('');
+        // createElement + textContent statt innerHTML: robust auch falls
+        // Namen aus /etc/passwd oder /etc/group mal Sonderzeichen enthalten
+        // (kein HTML-Escaping nötig, kein DOM-XSS-Risiko).
+        function fillSelect(sel, values, current) {
+          sel.innerHTML = '';
+          values.forEach(function(v) {
+            var opt = document.createElement('option');
+            opt.textContent = v;
+            opt.value = v;
+            if (v === current) opt.selected = true;
+            sel.appendChild(opt);
+          });
+        }
+        fillSelect(uSel, data.users, currentOwner);
+        fillSelect(gSel, data.groups, currentGroup);
 
         if (callback) callback();
       })
@@ -327,14 +333,18 @@ function mnInitPermissions() {
 
 // Mehrfach-Fallback: sofort, DOMContentLoaded, und window.onload,
 // damit die Initialisierung unabhängig vom Browser-Render-Timing greift.
-if (document.getElementById('mn-perm-init')) {
-  if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setTimeout(mnInitPermissions, 0);
-  } else {
-    document.addEventListener('DOMContentLoaded', mnInitPermissions);
-  }
-  window.addEventListener('load', mnInitPermissions);
+// WICHTIG: hier NICHT vorab mit document.getElementById('mn-perm-init')
+// prüfen, ob die Seite das Element hat - dieses Skript wird über
+// mn_head() ganz oben auf der Seite eingebunden und läuft daher, bevor
+// der restliche Seiteninhalt (inkl. #mn-perm-init) überhaupt im DOM
+// steht. Diese Prüfung wäre zu diesem Zeitpunkt immer false und würde
+// die Listener nie registrieren - mnInitPermissions() selbst prüft
+// bereits intern, ob das Element existiert.
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  setTimeout(mnInitPermissions, 0);
 }
+document.addEventListener('DOMContentLoaded', mnInitPermissions);
+window.addEventListener('load', mnInitPermissions);
 
 function mnApplyAndRedirect() {
   var initEl = document.getElementById('mn-perm-init');

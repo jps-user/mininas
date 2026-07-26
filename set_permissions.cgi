@@ -1,5 +1,7 @@
 #!/usr/bin/perl
 package main;
+use strict;
+use warnings;
 BEGIN { push(@INC, '..'); }
 use WebminCore;
 use JSON::PP;
@@ -31,12 +33,16 @@ json_err("Path '$path' outside allowed directories (/mnt, /srv).")
     unless mn_validate_path($path);
 
 # chown/chmod bewusst granular (nicht mn_set_ownership), damit die JSON-Antwort
-# genau sagt ob chown oder chmod fehlschlug – wichtig für die AJAX-Fehleranzeige.
-system('chown', "$own:$grp", $path);
-json_err("chown $own:$grp failed. Do user and group exist?") if $? != 0;
+# genau sagt ob chown oder chmod fehlschlug - wichtig für die AJAX-Fehleranzeige.
+# Native Perl-Funktionen statt system('chown'/'chmod', ...): kein Fork/Exec,
+# und die Sicherheit haengt nicht mehr an der Validierungs-Regex allein.
+my $uid = getpwnam($own);
+my $gid = getgrnam($grp);
+json_err("User '$own' does not exist.")  unless defined $uid;
+json_err("Group '$grp' does not exist.") unless defined $gid;
 
-system('chmod', $mode, $path);
-json_err("chmod $mode failed.") if $? != 0;
+chown($uid, $gid, $path) or json_err("chown $own:$grp failed: $!");
+chmod(oct($mode), $path) or json_err("chmod $mode failed: $!");
 
 my @st        = stat($path);
 my $new_mode  = sprintf('%04o', $st[2] & 07777);

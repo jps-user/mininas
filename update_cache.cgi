@@ -1,6 +1,8 @@
 #!/usr/bin/perl
 # update_cache.cgi - Weckt Disks explizit und misst Füllstände neu (AJAX vom Dashboard "Wake & measure").
 package main;
+use strict;
+use warnings;
 BEGIN { push(@INC, "..") }
 use WebminCore;
 use JSON::PP;
