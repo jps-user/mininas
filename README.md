@@ -55,7 +55,6 @@ container (the common Proxmox setup), there's some host-side prep to do first â€
 skipping this leads to confusing "n/a" readings and permission errors that look like
 MiniNAS bugs but are actually container/host plumbing.
 
-
 ### Why this is needed
 
 Unprivileged LXC containers can't mount raw block devices themselves â€” `mount:

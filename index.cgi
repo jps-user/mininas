@@ -2,12 +2,9 @@
 package main;
 use strict;
 use warnings;
-BEGIN { push(@INC, ".."); };
+BEGIN { push(@INC, ".."); }
 use WebminCore;
-$main::default_charset = 'utf-8';
-&init_config();
-require 'mininas/mininas-lib.pl';
-require 'mininas/ui_components.pl';
+require 'mininas/mininas-init.pl';
 
 &WebminCore::ui_print_header(undef, "MiniNAS", "", undef, 0, 0);
 print mn_head();

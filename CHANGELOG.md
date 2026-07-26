@@ -1,0 +1,122 @@
+# Changelog
+
+## v0.9.3
+
+Etappe 4a: CGI-Boilerplate zentralisiert (keine funktionalen Änderungen).
+
+- Neues `mininas-init.pl` als zentraler Einstiegspunkt: bündelt
+  `use WebminCore;`-Folgeschritte (`$main::default_charset`, `&init_config()`,
+  `&ReadParse()`, `require mininas-lib.pl`, `require ui_components.pl`), die
+  vorher in allen 21 `.cgi`-Dateien einzeln (und uneinheitlich - z.B. Charset
+  nur zufällig in manchen Dateien gesetzt) wiederholt wurden.
+- Jede `.cgi`-Datei hat jetzt denselben minimalen Kopf:
+  ```perl
+  use strict;
+  use warnings;
+  BEGIN { push(@INC, ".."); }
+  use WebminCore;
+  require 'mininas/mininas-init.pl';
+  ```
+  `use strict`/`use warnings`/`use WebminCore` bleiben bewusst pro Datei
+  bestehen - beides sind in Perl compile-zeit-lokale Effekte (Pragma bzw.
+  Symbol-Import), die sich nicht über `require` an den Aufrufer weiterreichen
+  lassen. Nur das, was tatsächlich reine Laufzeit-Wirkung hat, wandert in
+  `mininas-init.pl`.
+- Seiten-spezifische `use`-Zeilen (`JSON::PP`, `Encode`) bleiben unverändert
+  in der jeweiligen Datei.
+- Alle 21 `.cgi`-Dateien + `mininas-lib.pl` + `mininas-init.pl` +
+  `ui_components.pl` gegen einen WebminCore-Stub kompiliert, keine Fehler.
+
+## v0.9.2.1
+
+Security-Hardening-Durchgang (5 Etappen) plus zwei Live-Bugfixes, in
+Zusammenarbeit mit Claude erarbeitet und gegenreviewt (ChatGPT- und
+Gemini-Reviews mit eingeflossen, wo zutreffend).
+
+### Security
+
+- **Path-Whitelist-Bypass geschlossen**: `mn_validate_path()` griff bisher nur,
+  wenn `path_action` ungleich `none` war. Bei `path_action=none` konnte ein
+  beliebiger Pfad (auch ausserhalb `/mnt`/`/srv`) ungeprüft in die `smb.conf`
+  geschrieben werden. Validierung greift jetzt immer, sobald ein Pfad gesetzt ist.
+- **Share-Namen-Validierung**: neue `mn_validate_section_name()`; verhindert
+  Config-Injection und gespeichertes XSS über den Share-Namen.
+- **User-Listen-Validierung**: `valid users`/`read list`-Freitextfelder in
+  `save_section.cgi` laufen jetzt durch dieselbe Prüfung wie bei der
+  User-Anlage.
+- Fehlende `html_escape()`-Stellen in `edit_section.cgi` und
+  `edit_permissions.cgi` nachgezogen (Share-Name, Pfad).
+- **Full-Cleanup-Schutz**: `confirm_delete.cgi` verweigert `rm -rf`, wenn der
+  Share-Pfad exakt die Wurzel einer konfigurierten Disk ist (neue
+  `mn_path_is_disk_root()`).
+- **Backup-Fehler bricht jetzt ab**: schlägt das `cp`-Backup vor dem Schreiben
+  der `smb.conf` fehl, wird abgebrochen statt ungeschützt weiterzuschreiben.
+- **Denylist für Disk-Pfade**: `manage_disks.cgi` verweigert offensichtliche
+  Systempfade (`/etc`, `/root`, `/proc`, `/sys`, `/`, ...) als Disk-Mountpoint.
+- Mindestlänge für initiales Passwort bei User-Anlage vereinheitlicht
+  (6 Zeichen, wie beim Passwort-Ändern).
+- Log-Injection-Schutz: Newlines in Log-Nachrichten werden gefiltert.
+- **Symlink-Schutz** vor `rm -rf`/`mv`/`rsync` in `mn_remove_home_dir`,
+  `mn_rename_share_dir`, `mn_copy_share_dir`/`mn_move_share_dir` sowie im
+  direkten `rm -rf` in `confirm_delete.cgi`.
+- `ui_widgets.js`: Dropdown-Befüllung für Owner/Group auf `createElement`/
+  `textContent` statt `innerHTML` umgestellt (DOM-XSS-Härtung).
+- `set_permissions.cgi` + `mn_set_ownership()`: natives `chown()`/`chmod()`
+  statt `system('chown', ...)`/`system('chmod', ...)` — kein Fork/Exec mehr,
+  Sicherheit hängt nicht mehr allein an der Username-Validierungs-Regex.
+
+### Bugfixes (Datenintegrität)
+
+- **Samba "last-line-wins"-Bug behoben**: Samba übernimmt bei mehrfach
+  vorkommenden Parametern innerhalb derselben Section nur die *letzte*
+  Instanz. `save_section.cgi`, `create_user.cgi` (Modus "group") und
+  `save_user_shares.cgi` schrieben bisher für jeden User eine eigene
+  `valid users =`-Zeile bzw. hängten neue Zeilen an bestehende an — dadurch
+  verloren bei Multi-User-Shares alle bis auf den zuletzt geschriebenen User
+  beim nächsten Speichern stillschweigend den Zugriff. Alle drei Stellen
+  schreiben jetzt genau eine konsolidierte, deduplizierte Zeile pro Section.
+- **Permissions-Checkboxen initialisierten nicht zuverlässig**: hingen bisher
+  an `DOMContentLoaded`/`load`, die bei Webmins Authentic-Theme-Soft-Navigation
+  nicht zwingend erneut feuern (nur ein vollständiger Reload triggert sie
+  sicher). `edit_permissions.cgi` ruft `mnInitPermissions()` jetzt direkt
+  inline am Ende des bei jedem Aufruf frisch generierten Seiten-HTML auf.
+- **Share-Usage zeigte immer "1 GB"**: `mn_get_share_usage()` nutzte
+  `du -sBG`, was jeden Wert zwischen 1 Byte und 1 GB aufrundet. Umgestellt
+  auf `du -sh` (human-readable, z. B. "4.0K" für einen leeren Share).
+  *Hinweis: bestehender Storage-Cache enthält bis zum nächsten "Wake &
+  measure" noch alte Werte im alten Format.*
+
+### Code-Qualität
+
+- `use strict; use warnings;` in allen 21 `.cgi`-Dateien ergänzt (vorher:
+  keine einzige hatte es).
+- `$main::default_charset = 'utf-8'` konsistent auf allen 9 HTML-rendernden
+  Seiten gesetzt (vorher nur zufällig in `edit_section.cgi`).
+- Neue `mn_get_share_users()` in der Lib, ersetzt duplizierte Inline-Regex zur
+  User-Extraktion in `index.cgi`, `edit_permissions.cgi`, `confirm_delete.cgi`.
+- `edit_permissions.cgi` nutzt jetzt `mn_get_share_path()` statt eigenem
+  Inline-Regex.
+
+### Dokumentation
+
+- README: kaputten Bildverweis auf `docs/dashboard-disk-badge.png` entfernt
+  (Datei existiert nicht im Repo; `dashboard-full-overview.png` weiter oben
+  in der README zeigt den Sachverhalt bereits ausreichend).
+
+## v0.9.1
+
+- Etappe 1 (Storage Cache System): `/var/lib/mininas/storage.cache` +
+  `disks.conf`, sechs neue Lib-Funktionen, `update_cache.cgi`,
+  `manage_disks.cgi`, Cache in vier bestehende CGIs eingebunden.
+- Etappe 2 (Dashboard Layout Rebuild): rechtsseitiges Hamburger-Menü,
+  Disk-Usage-Kacheln mit Fortschrittsbalken, Share-Usage-Anzeige.
+- `mn_validate_path()` erlaubt beliebige Tiefe unter `/mnt`/`/srv` mit
+  `..`-Traversal-Schutz.
+- `save_section.cgi` "Create directory" triggert jetzt zuverlässig bei
+  Pfadänderung.
+- `mn_get_disk_usage`/`mn_disk_is_sleeping` akzeptieren auch Mountpoint-Pfade,
+  nicht nur Block-Devices.
+- Share-Usage "0B GB"-Anzeigefehler behoben.
+- JS-Escaping-Bug behoben: JS aus Perl-`print`-Strings raus, in
+  `ui_widgets.js`; CGI→JS-Daten laufen ausschliesslich über `data-*`-Attribute.
+- Hamburger-Menü z-index/Positionierung gegen Authentic-Theme-Header korrigiert.

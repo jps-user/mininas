@@ -6,13 +6,9 @@
 package main;
 use strict;
 use warnings;
-BEGIN { push(@INC, '..') }
+BEGIN { push(@INC, ".."); }
 use WebminCore;
-$main::default_charset = 'utf-8';
-&init_config();
-&ReadParse();
-require 'mininas/mininas-lib.pl';
-require 'mininas/ui_components.pl';
+require 'mininas/mininas-init.pl';
 
 my ($lines_ref, $sections_ref) = parse_smb_sections_v2();
 my @share_names = map { $_->{name} } grep { $_->{name} ne 'global' } @$sections_ref;

@@ -2,14 +2,10 @@
 package main;
 use strict;
 use warnings;
-BEGIN { push(@INC, ".."); };
+BEGIN { push(@INC, ".."); }
 use WebminCore;
+require 'mininas/mininas-init.pl';
 use Encode qw(decode_utf8);
-&init_config();
-&ReadParse();
-$main::default_charset = 'utf-8';
-require 'mininas/mininas-lib.pl';
-require 'mininas/ui_components.pl';
 
 my $sec_name = $in{'section'};
 my ($lines_ref, $sections_ref) = parse_smb_sections_v2();

@@ -1,13 +1,13 @@
 #!/usr/bin/perl
 # update_cache.cgi - Weckt Disks explizit und misst Füllstände neu (AJAX vom Dashboard "Wake & measure").
+
 package main;
 use strict;
 use warnings;
-BEGIN { push(@INC, "..") }
+BEGIN { push(@INC, ".."); }
 use WebminCore;
+require 'mininas/mininas-init.pl';
 use JSON::PP;
-&init_config();
-require 'mininas/mininas-lib.pl';
 
 my $ok = mn_update_storage_cache();
 write_mininas_log('CACHE_UPDATE', 'Manual "Wake & measure" triggered.') if $ok;

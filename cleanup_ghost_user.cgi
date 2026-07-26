@@ -2,11 +2,9 @@
 package main;
 use strict;
 use warnings;
-BEGIN { push(@INC, '..'); }
+BEGIN { push(@INC, ".."); }
 use WebminCore;
-&init_config();
-&ReadParse();
-require 'mininas/mininas-lib.pl';
+require 'mininas/mininas-init.pl';
 
 my $u = $in{'user'};
 &WebminCore::error('No user specified.') unless $u;

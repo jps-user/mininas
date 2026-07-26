@@ -2,16 +2,13 @@
 # manage_disks.cgi - Verwaltet /var/lib/mininas/disks.conf: Disks hinzufügen/entfernen,
 # Labels vergeben. Zeigt LXC-Hinweis, da in Containern meist nur Mountpoints (kein
 # rohes Blockgerät) sichtbar sind - siehe mn_is_lxc().
+
 package main;
 use strict;
 use warnings;
-BEGIN { push(@INC, ".."); };
+BEGIN { push(@INC, ".."); }
 use WebminCore;
-$main::default_charset = 'utf-8';
-&init_config();
-&ReadParse();
-require 'mininas/mininas-lib.pl';
-require 'mininas/ui_components.pl';
+require 'mininas/mininas-init.pl';
 
 my $action = $in{'action'} || '';
 my @errors;

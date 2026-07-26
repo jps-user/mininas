@@ -2,13 +2,9 @@
 package main;
 use strict;
 use warnings;
-BEGIN { push(@INC, '..'); }
+BEGIN { push(@INC, ".."); }
 use WebminCore;
-$main::default_charset = 'utf-8';
-&init_config();
-&ReadParse();
-require 'mininas/mininas-lib.pl';
-require 'mininas/ui_components.pl';
+require 'mininas/mininas-init.pl';
 
 &WebminCore::redirect('index.cgi') if defined $in{'cancel'};
 

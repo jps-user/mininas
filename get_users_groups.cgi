@@ -2,10 +2,10 @@
 package main;
 use strict;
 use warnings;
-BEGIN { push(@INC, ".."); };
+BEGIN { push(@INC, ".."); }
 use WebminCore;
+require 'mininas/mininas-init.pl';
 use JSON::PP;
-&init_config();
 
 my @users;
 if (open(my $fh, '<', '/etc/passwd')) {

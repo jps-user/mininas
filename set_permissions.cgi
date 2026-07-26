@@ -2,12 +2,10 @@
 package main;
 use strict;
 use warnings;
-BEGIN { push(@INC, '..'); }
+BEGIN { push(@INC, ".."); }
 use WebminCore;
+require 'mininas/mininas-init.pl';
 use JSON::PP;
-&init_config();
-&ReadParse();
-require 'mininas/mininas-lib.pl';
 
 sub json_ok  { my $m=shift; print "Content-type: application/json\n\n"; print encode_json({ ok => JSON::PP::true,  msg => $m }); exit; }
 sub json_err { my $m=shift; print "Content-type: application/json\n\n"; print encode_json({ ok => JSON::PP::false, msg => $m }); exit; }
