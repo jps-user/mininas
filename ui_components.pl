@@ -6,10 +6,15 @@ use strict;
 use warnings;
 
 # ── Globales CSS + Fonts + Icons ────────────────────────────────
+# Fonts/Icons liegen lokal unter assets/ statt via Google Fonts/jsDelivr
+# geladen zu werden - keine externe Abhaengigkeit mehr, funktioniert auch
+# wenn CT 103 mal ohne Internetzugang laeuft. Nur Tabler Icons 3.19.0
+# "outline"-Set (ti-*) und Noto Sans 400/500 latin, nur woff2 (ausreichend
+# fuer jeden Browser der letzten ~7 Jahre).
 sub mn_head {
     return <<'HTML';
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans:wght@400;500&display=swap">
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@3.19.0/dist/tabler-icons.min.css">
+<link rel="stylesheet" href="assets/fonts/noto-sans.css">
+<link rel="stylesheet" href="assets/icons/tabler-icons.min.css">
 <style>
 :root {
     --mn-bg:       #141414;
@@ -326,6 +331,43 @@ html[data-night-mode="0"] .mn-del-card:has(input[value=full_cleanup]:checked) { 
 </style>
 <script src="ui_widgets.js"></script>
 HTML
+}
+
+# ── Disk-Kachel im Dashboard (bis zu 5 Disks je Kachel) ─────────
+# Aus index.cgi ausgelagert (Etappe 4b) - reine Rendering-Funktion, druckt
+# direkt statt einen String zurueckzugeben, weil sie mehrere Disk-Zeilen
+# nacheinander ausgibt.
+sub mn_render_disk_tile {
+    my ($disks_slice_ref, $cache_ref, $title, $ts) = @_;
+    print "<div class='mn-tile'>";
+    print "<div class='mn-tile-label' style='display:flex; justify-content:space-between; align-items:baseline;'>";
+    print "<span><i class='ti ti-device-sd-card'></i> $title</span>";
+    my $ts_display = $ts ? $ts : 'never';
+    print "<span class='mn-disk-updated'>Updated: $ts_display</span>";
+    print "</div>";
+    foreach my $d (@$disks_slice_ref) {
+        my $dev   = $d->{dev};
+        my $label = $d->{label};
+        my $info  = $cache_ref->{disks}{$dev};
+        print "<div class='mn-disk-row'>";
+        print "<span class='mn-disk-label' title='$label'>$label</span>";
+        if ($info && defined($info->{total_gb}) && defined($info->{used_gb}) && $info->{total_gb} > 0) {
+            my $pct = int(($info->{used_gb} / $info->{total_gb}) * 100 + 0.5);
+            $pct = 100 if $pct > 100;
+            my $bar_class = $pct >= 90 ? 'mn-progress-crit' : ($pct >= 75 ? 'mn-progress-warn' : '');
+            print "<div class='mn-progress'><div class='mn-progress-bar $bar_class' style='width:${pct}%;'></div></div>";
+            print "<span class='mn-disk-pct'>$pct%</span>";
+        } else {
+            print "<div class='mn-progress'><div class='mn-progress-bar' style='width:0%;'></div></div>";
+            print "<span class='mn-disk-na'>n/a</span>";
+        }
+        my $sleeping = $info ? $info->{sleeping} : undef;
+        if (defined($sleeping) && $sleeping == 1) {
+            print "<span class='mn-disk-sleep' title='Sleeping - values may be outdated'><i class='ti ti-moon'></i></span>";
+        }
+        print "</div>";
+    }
+    print "</div>"; # mn-tile
 }
 
 # ── Standard-Seitenkopf: Zurück-Link + Titel ────────────────────

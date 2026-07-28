@@ -25,10 +25,10 @@ print "<tr><th style='width:40px; text-align:center;'>Access</th><th>Share</th><
 
 foreach my $s (@$sections_ref) {
     next if $s->{name} eq "global";
-    my $path = ($s->{raw} =~ /path\s*=\s*(.*)/i) ? $1 : "—";
-    $path =~ s/^\s+|\s+$//g;
-    my $has_rw = ($s->{raw} =~ /valid users\s*=\s*\b\Q$u\E\b/i) ? 1 : 0;
-    my $has_ro = ($s->{raw} =~ /read list\s*=\s*\b\Q$u\E\b/i)   ? 1 : 0;
+    my $path = mn_get_share_path($s) || "—";
+    my ($rw_ref, $ro_ref) = mn_get_share_users($s);
+    my $has_rw = (grep { $_ eq $u } @$rw_ref) ? 1 : 0;
+    my $has_ro = (grep { $_ eq $u } @$ro_ref) ? 1 : 0;
     my $checked = ($has_rw || $has_ro) ? 'checked' : '';
     my $mode    = $has_ro ? 'ro' : 'rw';
 

@@ -36,9 +36,9 @@ if ($target && $mode eq 'full_cleanup') {
     } elsif ($path && -l $path) {
         step_err("Refusing to delete '$path': it is a symlink, not a real directory.");
     } elsif ($path && mn_validate_path($path) && -d $path) {
-        system('rm', '-rf', $path);
-        $? == 0 ? step_ok("Directory removed: $path")
-                : step_err("Could not remove directory: $path");
+        my ($ok, $err) = mn_remove_directory_tree($path);
+        $ok ? step_ok("Directory removed: $path")
+            : step_err("Could not remove directory: $path" . ($err ? " ($err)" : ""));
     }
 
     # Alle User dieser Sektion sammeln und löschen

@@ -1,0 +1,15 @@
+/* Lokal gehostet statt Google Fonts (Etappe: Fonts/Icons self-hosting) */
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('noto-sans-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Noto Sans';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('noto-sans-500.woff2') format('woff2');
+}

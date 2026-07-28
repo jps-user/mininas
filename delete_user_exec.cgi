@@ -21,8 +21,8 @@ if ($mode eq 'full_cleanup') {
     mn_delete_os_user($u);
     write_mininas_log('USER_DELETE', "Full cleanup: $u removed from OS and config.");
 } else {
-    system('smbcontrol', 'smbd', 'close-share', $u);
-    write_mininas_log('USER_DELETE', "Config-only: $u removed from smb.conf, OS user kept.");
+    my (undef, $err) = mn_close_smb_connections($u);
+    write_mininas_log('USER_DELETE', "Config-only: $u removed from smb.conf, OS user kept." . ($err ? " (close-share warning: $err)" : ""));
 }
 
 reload_samba();

@@ -10,66 +10,15 @@ require 'mininas/mininas-init.pl';
 print mn_head();
 print "<div class='mn-wrap'>";
 
-# ── Daten sammeln ────────────────────────────────────────────────
-my $smbd_ok = mn_service_active('smbd');
-my $nmbd_ok = mn_service_active('nmbd');
-
-# /proc/mounts
-my %mounted;
-if (open(my $mf, '<', '/proc/mounts')) {
-    while (<$mf>) { my (undef, $mp) = split(' '); $mounted{$mp} = 1; }
-    close($mf);
-}
-
-my ($lines_ref, $sections_ref) = parse_smb_sections_v2();
-
-# Share-Status (HDD-neutral: stat() + /proc/mounts)
-my @share_status;
-foreach my $s (@$sections_ref) {
-    next if $s->{name} eq 'global';
-    my ($path) = ($s->{raw} =~ /path\s*=\s*([^\n]+)/i);
-    $path =~ s/^\s+|\s+$//g if $path;
-    next unless $path;
-    my $dir_ok     = (-d $path) ? 1 : 0;
-    my $is_mounted = 0;
-    if ($mounted{$path}) { $is_mounted = 1; }
-    else {
-        foreach my $mp (sort { length($b) <=> length($a) } keys %mounted) {
-            next if $mp eq '/';
-            if (substr($path, 0, length($mp)) eq $mp) { $is_mounted = 1; last; }
-        }
-    }
-    push @share_status, { name => $s->{name}, path => $path, dir_ok => $dir_ok, mounted => $is_mounted };
-}
-
-my %share_ok_lookup = map { $_->{name} => $_->{dir_ok} } @share_status;
-my $shares_all_ok = !grep { !$_->{dir_ok} } @share_status;
-my $global_ok     = ($smbd_ok && $nmbd_ok && $shares_all_ok);
-
-# Users zählen
-my %users;
-if (open(my $pw, '<', '/etc/passwd')) {
-    while (<$pw>) { my ($u, undef, $uid) = split(':'); $users{$u} = $uid if $uid >= 1000 && $uid < 65534; }
-    close($pw);
-}
-my $share_count = scalar(grep { $_->{name} ne 'global' } @$sections_ref);
-my $user_count  = scalar(keys %users);
-my $tm_count    = scalar(grep { $_->{raw} =~ /fruit:time machine\s*=\s*yes/i } @$sections_ref);
-
-# Storage-Cache laden für Disk-Kacheln + Share-Usage-Spalte.
-# Option C: Beim Dashboard-Laden wird der Cache nur dann aktualisiert,
-# wenn /proc/diskstats seit der letzten Messung bereits Aktivität zeigt
-# (Disk ist dann ohnehin schon wach – kein zusätzliches Aufwecken).
-my $disks_ref  = mn_read_disks_conf();
-my $any_active = 0;
-foreach my $d (@$disks_ref) {
-    my $sleeping = mn_disk_is_sleeping($d->{dev});
-    if (defined($sleeping) && $sleeping == 0) { $any_active = 1; last; }
-}
-mn_update_storage_cache() if $any_active;
-
-my $cache    = mn_read_storage_cache();
-my $cache_ts = $cache->{timestamp} || '';
+# ── Daten sammeln (Etappe 4b: ausgelagert in mininas-lib.pl) ──────
+my $data             = mn_collect_dashboard_data();
+my $sections_ref     = $data->{sections_ref};
+my $share_ok_lookup  = $data->{share_ok_lookup};
+my $global_ok        = $data->{global_ok};
+my %users            = %{ $data->{users} };
+my $disks_ref        = $data->{disks_ref};
+my $cache            = $data->{cache};
+my $cache_ts         = $data->{cache_ts};
 
 # ── Hamburger-Button + Sidebar (rechts, immer geschlossen beim Laden) ──
 print "<button type='button' class='mn-hamburger' onclick='mnSidebarOpen()' title='Menu'><i class='ti ti-menu-2'></i></button>";
@@ -99,40 +48,8 @@ print "<div class='mn-tile-val' style='color:$status_color;'>$status_label</div>
 print "</div>";
 
 # Disk-Kachel(n): bis 5 Disks je Kachel, aus disks.conf + Cache.
-# Zeigt "Updated: <timestamp>" neben dem Label statt in einer separaten Kachel.
-sub mn_render_disk_tile {
-    my ($disks_slice_ref, $cache_ref, $title, $ts) = @_;
-    print "<div class='mn-tile'>";
-    print "<div class='mn-tile-label' style='display:flex; justify-content:space-between; align-items:baseline;'>";
-    print "<span><i class='ti ti-device-sd-card'></i> $title</span>";
-    my $ts_display = $ts ? $ts : 'never';
-    print "<span class='mn-disk-updated'>Updated: $ts_display</span>";
-    print "</div>";
-    foreach my $d (@$disks_slice_ref) {
-        my $dev   = $d->{dev};
-        my $label = $d->{label};
-        my $info  = $cache_ref->{disks}{$dev};
-        print "<div class='mn-disk-row'>";
-        print "<span class='mn-disk-label' title='$label'>$label</span>";
-        if ($info && defined($info->{total_gb}) && defined($info->{used_gb}) && $info->{total_gb} > 0) {
-            my $pct = int(($info->{used_gb} / $info->{total_gb}) * 100 + 0.5);
-            $pct = 100 if $pct > 100;
-            my $bar_class = $pct >= 90 ? 'mn-progress-crit' : ($pct >= 75 ? 'mn-progress-warn' : '');
-            print "<div class='mn-progress'><div class='mn-progress-bar $bar_class' style='width:${pct}%;'></div></div>";
-            print "<span class='mn-disk-pct'>$pct%</span>";
-        } else {
-            print "<div class='mn-progress'><div class='mn-progress-bar' style='width:0%;'></div></div>";
-            print "<span class='mn-disk-na'>n/a</span>";
-        }
-        my $sleeping = $info ? $info->{sleeping} : undef;
-        if (defined($sleeping) && $sleeping == 1) {
-            print "<span class='mn-disk-sleep' title='Sleeping - values may be outdated'><i class='ti ti-moon'></i></span>";
-        }
-        print "</div>";
-    }
-    print "</div>"; # mn-tile
-}
-
+# Rendering-Funktion mn_render_disk_tile() lebt in ui_components.pl
+# (Etappe 4b) - zeigt "Updated: <timestamp>" neben dem Label.
 if (@$disks_ref) {
     my @first5 = @$disks_ref[0 .. (scalar(@$disks_ref) > 5 ? 4 : $#$disks_ref)];
     mn_render_disk_tile(\@first5, $cache, 'Disks', $cache_ts);
@@ -174,7 +91,7 @@ foreach my $s (@$sections_ref) {
     } elsif ($path ne "—") { $perm_str = "missing"; }
 
     # Share-Name einfärben wenn der Pfad fehlt (Attention)
-    my $share_ok = $share_ok_lookup{$s->{name}};
+    my $share_ok = $share_ok_lookup->{$s->{name}};
     my $name_style = $share_ok ? "" : " style='color:var(--mn-red);'";
 
     my $edit_url = "edit_section.cgi?section=".&WebminCore::urlize($s->{name});

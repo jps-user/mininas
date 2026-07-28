@@ -69,6 +69,27 @@ sub mn_get_share_users {
     return (\@rw, \@ro);
 }
 
+# Gibt den "comment ="-Wert einer Section zurück, oder '' falls keiner gesetzt.
+sub mn_get_share_comment {
+    my ($section) = @_;
+    return '' unless $section && $section->{raw};
+    my ($c) = ($section->{raw} =~ /^\s*comment\s*=\s*([^\n]+)/im);
+    $c =~ s/^\s+|\s+$//g if $c;
+    return $c || '';
+}
+
+# Gibt zurück ob eine Section "browseable"/"browsable" ist (Samba akzeptiert
+# beide Schreibweisen). Default ist 'yes', wenn kein Wert gesetzt ist -
+# entspricht Sambas eigenem Default-Verhalten.
+sub mn_get_share_browseable {
+    my ($section) = @_;
+    return 1 unless $section && $section->{raw};
+    my ($v) = ($section->{raw} =~ /^\s*browse(?:a)?ble\s*=\s*([^\n]+)/im);
+    return 1 unless defined $v;
+    $v =~ s/^\s+|\s+$//g;
+    return ($v =~ /^(no|false|0)$/i) ? 0 : 1;
+}
+
 # Schreibt smb.conf atomar: lock → backup → tmp → rename → testparm → unlock
 # Bei testparm-Fehler: Rollback auf Backup, unlock, error().
 # $new_lines_ref: Arrayref mit den zu schreibenden Zeilen
@@ -297,6 +318,47 @@ sub mn_delete_os_user {
     system('smbpasswd', '-x', $username);
     system('userdel', '-r', $username);
     return 1;
+}
+
+# ── Generischer Kommando-Wrapper ───────────────────────────────────
+# Fuehrt ein externes Kommando in Listen-Form aus (kein Shell-Interpolation-
+# Risiko) und liefert (erfolg, fehlerausgabe) zurueck, statt dass jeder
+# Aufrufer selbst $? auswertet und sich eine eigene Fehlermeldung ohne
+# Kontext ausdenkt. stderr wird eingefangen, damit Fehlermeldungen an den
+# Admin auch tatsaechlich sagen koennen WARUM etwas fehlschlug (Philosophy
+# 14: "Human Readable Errors").
+sub mn_run {
+    my (@cmd) = @_;
+    my $pid = open(my $fh, '-|');
+    return (0, "Could not fork: $!") unless defined $pid;
+    if ($pid == 0) {
+        open(STDERR, '>&STDOUT') or exit(127);
+        exec(@cmd) or exit(127);
+    }
+    local $/;
+    my $output = <$fh>;
+    close($fh);
+    my $rc = $? >> 8;
+    return ($rc == 0, $output);
+}
+
+# Loescht einen Verzeichnisbaum rekursiv. Gibt (erfolg, fehlerausgabe) zurueck.
+# Validierung des Pfads (Whitelist, Symlink-Check, Disk-Root-Schutz) ist
+# Aufgabe des Aufrufers - diese Funktion fuehrt nur noch aus.
+sub mn_remove_directory_tree {
+    my ($path) = @_;
+    return (0, 'No path given.') unless $path;
+    return mn_run('rm', '-rf', $path);
+}
+
+# Schliesst aktive Samba-Verbindungen eines Users (z.B. vor "Config-only"
+# User-Loeschung, damit laufende Verbindungen nicht mit einem gerade aus der
+# smb.conf entfernten User weiterlaufen). Best-effort - ein Fehlschlag hier
+# ist kein Grund, die eigentliche Loeschung abzubrechen.
+sub mn_close_smb_connections {
+    my ($username) = @_;
+    return (0, 'No username given.') unless $username;
+    return mn_run('smbcontrol', 'smbd', 'close-share', $username);
 }
 
 # ── Filesystem-Berechtigungen ─────────────────────────────────────
@@ -753,6 +815,74 @@ sub mn_read_log {
         }
     }
     return @entries;
+}
+
+# ── Dashboard-Datensammlung (Etappe 4b) ─────────────────────────
+# Sammelt alle Daten, die index.cgi zum Rendern braucht, an einer Stelle.
+# index.cgi selbst soll nur noch rendern, nicht mehr selbst Samba-Status,
+# Mounts, User-Liste und Storage-Cache zusammensuchen. Gibt einen Hashref
+# zurueck statt vieler einzelner Rueckgabewerte - einfacher zu erweitern,
+# ohne bei jedem neuen Feld die Aufrufer-Signatur anzufassen.
+sub mn_collect_dashboard_data {
+    my %data;
+    $data{smbd_ok} = mn_service_active('smbd');
+    $data{nmbd_ok} = mn_service_active('nmbd');
+
+    my %mounted;
+    if (open(my $mf, '<', '/proc/mounts')) {
+        while (<$mf>) { my (undef, $mp) = split(' '); $mounted{$mp} = 1; }
+        close($mf);
+    }
+
+    my (undef, $sections_ref) = parse_smb_sections_v2();
+    $data{sections_ref} = $sections_ref;
+
+    # Share-Status (HDD-neutral: stat() + /proc/mounts, weckt keine Disks)
+    my @share_status;
+    foreach my $s (@$sections_ref) {
+        next if $s->{name} eq 'global';
+        my $path = mn_get_share_path($s);
+        next unless $path;
+        my $dir_ok     = (-d $path) ? 1 : 0;
+        my $is_mounted = 0;
+        if ($mounted{$path}) {
+            $is_mounted = 1;
+        } else {
+            foreach my $mp (sort { length($b) <=> length($a) } keys %mounted) {
+                next if $mp eq '/';
+                if (substr($path, 0, length($mp)) eq $mp) { $is_mounted = 1; last; }
+            }
+        }
+        push @share_status, { name => $s->{name}, path => $path, dir_ok => $dir_ok, mounted => $is_mounted };
+    }
+    $data{share_status}    = \@share_status;
+    $data{share_ok_lookup} = { map { $_->{name} => $_->{dir_ok} } @share_status };
+    my $shares_all_ok = !grep { !$_->{dir_ok} } @share_status;
+    $data{global_ok}  = ($data{smbd_ok} && $data{nmbd_ok} && $shares_all_ok);
+
+    # Users zaehlen (System-User mit UID 1000-65533, ueblicher "echter Mensch"-Bereich)
+    my %users;
+    if (open(my $pw, '<', '/etc/passwd')) {
+        while (<$pw>) { my ($u, undef, $uid) = split(':'); $users{$u} = $uid if $uid >= 1000 && $uid < 65534; }
+        close($pw);
+    }
+    $data{users}       = \%users;
+
+    # Storage-Cache: nur aktualisieren wenn eine Disk laut /proc/diskstats
+    # ohnehin schon aktiv ist (kein zusaetzliches Aufwecken schlafender HDDs).
+    my $disks_ref  = mn_read_disks_conf();
+    $data{disks_ref} = $disks_ref;
+    my $any_active = 0;
+    foreach my $d (@$disks_ref) {
+        my $sleeping = mn_disk_is_sleeping($d->{dev});
+        if (defined($sleeping) && $sleeping == 0) { $any_active = 1; last; }
+    }
+    mn_update_storage_cache() if $any_active;
+
+    $data{cache}    = mn_read_storage_cache();
+    $data{cache_ts} = $data{cache}->{timestamp} || '';
+
+    return \%data;
 }
 
 1;

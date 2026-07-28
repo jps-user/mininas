@@ -1,5 +1,65 @@
 # Changelog
 
+## v0.9.3.3
+
+Bugfix: Checkboxen auf "Share permissions: [User]" (`edit_user_shares.cgi`)
+blieben nach dem Speichern optisch leer, obwohl die Zuweisung korrekt
+gespeichert wurde (Dashboard zeigte es richtig an).
+
+- Ursache: eigene, veraltete Regex zur Checkbox-Vorbelegung
+  (`valid users\s*=\s*\b\Q$u\E\b`) matchte nur, wenn der User als **erster**
+  Eintrag direkt nach dem `=` steht. Neu hinzugefügte User werden von
+  `save_user_shares.cgi` aber ans Ende der Liste angehängt - die Checkbox
+  erkannte die eigene, gerade gespeicherte Zuweisung dadurch nicht wieder.
+- Fix: `edit_user_shares.cgi` nutzt jetzt `mn_get_share_path()` und
+  `mn_get_share_users()` wie der Rest des Moduls, statt eine eigene,
+  unvollständige Regex zu pflegen. Per Test verifiziert: User an beliebiger
+  Position in der Liste wird korrekt erkannt.
+
+## v0.9.3.2
+
+Etappe 4b (Rest) + Punkte 1-5 aus der Vereinfachungs-Liste.
+
+### 1. `index.cgi` aufgeteilt (Collect vs. Render)
+- Neue `mn_collect_dashboard_data()` in `mininas-lib.pl`: sammelt Samba-Status,
+  `/proc/mounts`-Abgleich, Share-Status, User-Liste, Storage-Cache-Update
+  an einer Stelle. `index.cgi` selbst ruft nur noch auf und rendert.
+- Neue `mn_render_disk_tile()` in `ui_components.pl` (aus `index.cgi`
+  herausgelöst, Verhalten 1:1 übernommen).
+- Verhalten unverändert: "Samba Status"-Kachel wertet weiterhin nur Shares
+  mit konfiguriertem Pfad; Storage-Cache-Update weiterhin nur wenn laut
+  `/proc/diskstats` ohnehin schon eine Disk aktiv ist.
+
+### 2. Weitere Share-Accessor-Funktionen
+- Neue `mn_get_share_comment()` und `mn_get_share_browseable()` in
+  `mininas-lib.pl`, analog zu `mn_get_share_path()`/`mn_get_share_users()`
+  (aktuell noch ungenutzt, für kommende Erweiterungen vorbereitet).
+
+### 3+4. `mn_run()`-Wrapper, letzte direkte `system()`-Aufrufe zentralisiert
+- Neue `mn_run(@cmd)` in `mininas-lib.pl`: Listen-Form-Ausführung mit
+  eingefangenem stderr, liefert `(erfolg, fehlerausgabe)` zurück statt dass
+  jeder Aufrufer `$?` selbst auswertet und sich eine kontextlose
+  Fehlermeldung ausdenkt. Per Test verifiziert: Erfolgsfall, Fehlerfall mit
+  stderr-Capture, und Shell-Metazeichen in Argumenten werden nicht
+  interpretiert (Listen-Form bleibt erhalten).
+- Neue `mn_remove_directory_tree()` und `mn_close_smb_connections()` in
+  der Lib - die letzten beiden direkten `system()`-Aufrufe in `.cgi`-Dateien
+  (`confirm_delete.cgi`, `delete_user_exec.cgi`) laufen jetzt darüber.
+  Damit sitzt jeder Shell-Aufruf im ganzen Modul in `mininas-lib.pl`.
+
+### 5. Fonts/Icons lokal gehostet
+- Tabler Icons 3.19.0 (nur "outline"-Set, `ti-*`) und Noto Sans 400/500
+  (latin, deckt deutsche Umlaute ab) liegen jetzt unter `assets/` im Modul
+  statt von Google Fonts/jsDelivr geladen zu werden - keine externe
+  Abhängigkeit mehr, funktioniert auch ohne Internetzugang.
+- Nur `woff2` statt `woff2`+`woff`+`ttf` (ausreichend für jeden Browser der
+  letzten ~7 Jahre) - 1.2 MB gesamt statt 14 MB+ an vollständigen
+  Font-Paketen.
+- **Bitte beim ersten Deploy kurz die Browser-Konsole/Netzwerk-Tab prüfen**,
+  ob `assets/fonts/*.css` und `assets/icons/*.css` sauber geladen werden -
+  konnte in der Sandbox nicht gegen einen echten Webmin-Server getestet
+  werden, nur die Dateistruktur und Pfade verifiziert.
+
 ## v0.9.3.1
 
 Etappe 4b: wiederkehrende UI-Bausteine zentralisiert (keine funktionalen
